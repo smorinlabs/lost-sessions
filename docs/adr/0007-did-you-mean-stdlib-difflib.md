@@ -1,6 +1,6 @@
 # 0007. Did-you-mean suggestions via stdlib difflib
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive), implemented in PR #400
 - **Related:** `cli/groups.py`; design 0001 (noun-verb command shape)

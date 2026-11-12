@@ -1,6 +1,6 @@
 # 0006. Stable error codes, hints, and a crash log
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive), implemented in PR #400
 - **Related:** `EXAMPLECLI.md` §"Exit codes & error codes"; `core/errors.py`; ADR 0004

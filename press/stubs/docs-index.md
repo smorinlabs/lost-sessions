@@ -2,7 +2,7 @@
 
 This application was generated from a template. Begin with
 [development setup](tasks/setting_up_development.md), then use the CLI reference
-and [web documentation](web/index.md) for the provided interfaces.
+for the provided interface.
 Repository and external-service configuration lives in `docs/PROJECT_SETUP.md`.
 Source-template provenance is recorded in `press/press-receipt.toml`.
 
@@ -20,7 +20,6 @@ about/index
 tasks/index
 tools/index
 tutorials/index
-web/index
 reference/index
 contributing/index
 github-templates

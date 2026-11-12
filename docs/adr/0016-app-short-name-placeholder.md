@@ -1,6 +1,6 @@
 # 0016. App short name becomes an obvious placeholder: `lost_sessions` → `acmeapp`
 
-- **Status:** Accepted (implementation pending — the mechanical rename has not
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
   been applied yet; until it lands, `lost_sessions`/`LOST_SESSIONS` remain the live identity)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive)

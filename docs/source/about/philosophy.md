@@ -1,7 +1,7 @@
 # Project philosophy
 
 This application starts with documented development tools, automated checks,
-and examples for CLI and web interfaces. Adapt these foundations to the
+and a command-line interface. Adapt these foundations to the
 application's purpose and the people who use it.
 
 - Keep behavior and configuration documented.

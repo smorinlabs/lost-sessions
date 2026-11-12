@@ -17,8 +17,7 @@ feature proposals, conventions, and requirements — before or while implementin
 
 | Doc | Title | Status |
 |-----|-------|--------|
-| [0001](0001-lost_sessions-cli-conventions.md) | `lost_sessions` CLI conventions — output, color, config (TOML), logging | Proposed |
-| [0002](0002-web-api-conventions.md) | Web API conventions (the WEB-xx baseline) | Accepted |
-| [0003](0003-logging-conventions.md) | Logging conventions — one pipeline, two profiles | Accepted |
+| [0003](0003-logging-conventions.md) | Logging conventions — one pipeline, two profiles | Superseded (ADR 0020) |
 | [0004](0004-template-press-plan.md) | Template Press — reusable init/post-init engine plan | Accepted |
-| [0005](0005-hexagonal-architecture-and-enforcement.md) | Hexagonal architecture & boundary enforcement (the HEX-xx baseline) | Proposed |
+| [0005](0005-hexagonal-architecture-and-enforcement.md) | Hexagonal architecture & boundary enforcement (the HEX-xx baseline) | Superseded (by 0006) |
+| [0006](0006-lost-sessions-plugin-design.md) | lost-sessions plugin design (pluggy, agent and session-manager plugins) | Accepted |

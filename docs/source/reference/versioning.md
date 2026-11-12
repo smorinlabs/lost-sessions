@@ -19,7 +19,7 @@ uv build
 ## Daily Development
 
 ```bash
-uv sync --all-extras --dev
+uv sync --group dev
 uv run python -c "import lost_sessions; print(lost_sessions.__version__)"
 uv build
 ```

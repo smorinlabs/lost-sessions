@@ -1,6 +1,6 @@
 # 0015. One logging pipeline, two front-end profiles
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive), implemented in PR #420
 - **Related:** `docs/design/0003-logging-conventions.md` (the full

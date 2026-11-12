@@ -1,6 +1,6 @@
 # 0017. Hexagonal core with mechanical boundary enforcement
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-14
 - **Deciders:** Steve Morin (maintainer)
 - **Related:** design

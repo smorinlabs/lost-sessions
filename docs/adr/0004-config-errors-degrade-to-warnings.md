@@ -1,6 +1,6 @@
 # 0004. Invalid config values degrade to warnings, never crashes
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-10
 - **Deciders:** maintainer (via code-review batch), implemented post-review in PR #378/#379
 - **Related:** [design 0001](../design/0001-lost_sessions-cli-conventions.md) §6–§7

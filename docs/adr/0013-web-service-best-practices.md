@@ -1,6 +1,6 @@
 # 0013. Web service: baked-in REST best practices behind the `web` extra
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer, implemented in PRs #395 and #399
 - **Related:** [design 0002](../design/0002-web-api-conventions.md) (the

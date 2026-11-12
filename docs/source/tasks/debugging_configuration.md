@@ -33,13 +33,13 @@ Open the **Run & Debug** panel and select one of the configurations:
     "name": "Python: Launch Main",
     "type": "python",
     "request": "launch",
-    "program": "${workspaceFolder}/src/lost_sessions/cli/main.py"
+    "module": "lost_sessions"
   },
   {
     "name": "Python: Launch Main (With Args)",
     "type": "python",
     "request": "launch",
-    "program": "${workspaceFolder}/src/lost_sessions/cli/main.py",
+    "module": "lost_sessions",
     "args": ["projects", "list", "--workspace", "test", "--limit", "10"]
   }
 ]

@@ -17,8 +17,12 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-"""Py utilities package."""
+"""lost-sessions: recover agent sessions that a reboot dropped."""
 
 from importlib import metadata
 
+from lost_sessions.hookspecs import hookimpl
+
 __version__ = metadata.version("lost_sessions")
+
+__all__ = ["__version__", "hookimpl"]

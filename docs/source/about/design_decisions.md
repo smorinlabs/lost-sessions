@@ -74,52 +74,26 @@ that a flat layout hides until release.
 **Value** — "it imports in CI" means "it imports for users."
 **Refs** — `pyproject.toml`; ITM-074.
 
-### Hexagonal core (ports & adapters)
-**What** — business logic lives in `core/`; `cli/` and `web/` are front-end
-adapters; a `composition/` root wires them together. Dependencies point inward.
-**Why** — a template should demonstrate an architecture that scales past a single
-script. Isolating the core from frameworks keeps the domain testable and lets a
-fork swap or add a front end (CLI today, web tomorrow) without rewriting logic.
-**Value** — adopters inherit a structure that stays maintainable as the project
-grows, instead of a god-module that has to be untangled later.
-**Refs** — [ADR-0017](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0017-hexagonal-core-and-boundary-enforcement.md),
-[design 0005](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0005-hexagonal-architecture-and-enforcement.md) (`HEX-xx`).
+### Plugins through `pluggy`, as in `simonw/llm`
+**What** — core finds sessions and opens them only through plugins: agent
+plugins (Claude Code, Codex, Muse, OpenCode) and session-manager plugins
+(Herdr, Rex). The six built-ins use the same hooks as third-party
+`lost-sessions-<name>` packages.
+**Why** — new agents and session managers ship as separate packages without
+changing core, and the built-ins prove the interface third parties use.
+**Value** — one well-tested core; extensions install with
+`uv tool install lost-sessions --with lost-sessions-<name>`.
+**Refs** — [design 0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0006-lost-sessions-plugin-design.md),
+[ADR-0020](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0020-lost-sessions-replaces-template-cli-and-web.md).
 
-### Mechanical boundary enforcement with `import-linter`
-**What** — `lint-imports` enforces five contracts: core never imports a
-front-end; CLI and web are mutually independent; the composition root is never
-imported by core; core layers run `models < services < adapters`; and core
-imports no web/CLI frameworks (`fastapi`, `click`, `uvicorn`).
+### Import rules with `import-linter`
+**What** — `lint-imports` enforces the package's import contracts: the package
+imports no web framework, and core reaches built-in plugins only through the
+plugin manager.
 **Why** — architecture documented in prose erodes; architecture checked by a
 tool does not. import-linter reads the actual import graph.
-**Value** — the hexagonal boundaries above are *guaranteed*, not aspirational —
-a violating import fails the pre-push hook and CI.
+**Value** — a violating import fails the pre-push hook and CI.
 **Refs** — `pyproject.toml [tool.importlinter]`, `lefthook.yml`; HEX-30.
-
-### Bounded-context isolation with `tach`
-**What** — `tach.toml` declares each module's allowed dependencies
-(`core → root`, `composition → core`, `cli/web → composition, core, root`).
-**Why** — import-linter guards layering; tach guards *module ownership*, a
-second, differently-shaped check on the same intent.
-**Value** — defence in depth against accidental coupling between subsystems.
-**Refs** — `tach.toml`; HEX-31.
-
-### Framework-bleed guard via Ruff `TID251`
-**What** — a fast Ruff rule blocks framework imports inside `core/` at
-pre-commit time.
-**Why** — import-linter and tach run at pre-push/CI; a Ruff rule gives the same
-feedback in milliseconds while you type.
-**Value** — the most common boundary mistake is caught at the earliest, cheapest
-moment.
-**Refs** — `pyproject.toml [tool.ruff]`; HEX-32.
-
-### Pydantic result models with a rich-only row variant
-**What** — command results are Pydantic models that serialize to JSON and also
-expose a `.row()` variant for Rich-formatted terminal tables.
-**Why** — one model serves both the machine contract (JSON) and the human view
-(tables) without duplicating field definitions.
-**Value** — JSON output and pretty output can never drift apart.
-**Refs** — [ADR-0010](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0010-rich-row-variant-on-result-models.md).
 
 ---
 
@@ -127,7 +101,7 @@ expose a `.row()` variant for Rich-formatted terminal tables.
 
 ### `uv` for dependencies and environments
 **What** — `uv` manages the virtualenv, resolves dependencies, and writes
-`uv.lock`. The canonical sync is `uv sync --group dev --extra web`.
+`uv.lock`. The canonical sync is `uv sync --group dev`.
 **Why** — uv resolves and installs ~10–100× faster than pip/poetry and produces a
 fully-pinned cross-platform lockfile, so local and CABA environments match.
 **Value** — fresh-clone setup takes seconds; "dependency hell" is replaced by a
@@ -144,13 +118,12 @@ project, replacing the previous Hatchling + hatch-vcs stack.
 note in AGENTS.md (ADR-06); ITM-073.
 
 ### PEP 735 dependency-groups, not extras, for tooling
-**What** — `dev` and `docs` are PEP 735 `[dependency-groups]`; only *runtime*
-optionals (`web`, `otel`) are `[project.optional-dependencies]` extras.
+**What** — `dev` and `docs` are PEP 735 `[dependency-groups]`; the package
+declares no optional extras.
 **Why** — dev/doc tooling is not part of the published package's optional
 feature set; PEP 735 groups model "local-only" dependencies correctly and are
 installable with `uv sync --group`, never shipped to PyPI consumers.
-**Value** — `pip install lost-sessions[web]` pulls real features;
-`pip install '.[dev]'` is intentionally *not* the path — dev deps stay out of the
+**Value** — `pip install '.[dev]'` is intentionally *not* the path — dev deps stay out of the
 distribution.
 **Refs** — `pyproject.toml`; ITM-063.
 
@@ -270,11 +243,9 @@ survive contributors' editors.
 ## 5. Type checking
 
 ### `ty` (Astral) in CI
-**What** — `ty check src/lost_sessions/` is the type gate; it runs with
-`--extra web` so web imports resolve.
+**What** — `ty check src/lost_sessions/` is the type gate.
 **Why** — `ty` is a fast Rust-based checker from the makers of Ruff/uv, keeping
-the toolchain coherent and the gate quick. The `--extra web` flag is required so
-the optional web package's imports type-check.
+the toolchain coherent and the gate quick.
 **Value** — a fast, single-vendor quality stack; type regressions block merges.
 **Refs** — `Justfile`, `.github/workflows/ci.yml`; ADR-03 (per AGENTS.md), ITM-026.
 
@@ -325,22 +296,6 @@ a high bar. Uploading from one matrix cell prevents double-counting.
 **Value** — coverage can't quietly rot, and PRs are judged on the lines they
 touch.
 **Refs** — `.codecov.yml`, `.github/workflows/ci.yml`; WL-005.
-
-### Snapshot testing with `syrupy`
-**What** — CLI output and the OpenAPI document are asserted against committed
-`.ambr` snapshots.
-**Why** — golden snapshots catch unintended output changes (formatting, field
-order) that assertion-by-assertion tests miss.
-**Value** — the human-facing output contract is locked and reviewed as a diff.
-**Refs** — `pyproject.toml` (`syrupy` dev dep), `.editorconfig`; WL-023.
-
-### Contract fuzzing with `schemathesis`
-**What** — `schemathesis` fuzzes every documented web operation (marked `slow`),
-currently asserting "no 5xx."
-**Why** — generated test cases probe edge inputs no hand-written test would,
-verifying the API matches its own schema.
-**Value** — the web service is hardened against malformed input automatically.
-**Refs** — `tests/web/`, `pyproject.toml`; WEB-50.
 
 ### Cross-platform, cross-version matrix
 **What** — CI runs the suite on Linux, macOS and Windows with Python 3.13,
@@ -504,8 +459,7 @@ linting them catches errors before a broken run.
 **Refs** — `.github/workflows/lint.yml`; ITM-029.
 
 ### Documentation build is a gate
-**What** — CI builds the Sphinx docs with warnings-as-errors (using the `web`
-extra so autodoc imports resolve); a weekly link-check validates external links.
+**What** — CI builds the Sphinx docs with warnings-as-errors; a weekly link-check validates external links.
 **Why** — broken docs are a real regression; failing on warnings keeps the
 published site clean, and scheduled link-checking catches link rot.
 **Value** — the docs that ship always build and (mostly) link correctly.
@@ -612,7 +566,7 @@ already use.
 
 ### `just` as the command runner
 **What** — every routine task is a `just` recipe (`check`, `format`, `test`,
-`serve`, `audit`, `export-openapi`, `docs`, …).
+`audit`, `docs`, …).
 **Why** — `just` is a modern, discoverable `make` alternative without make's
 tab/phony-target sharp edges; one `just --list` shows the whole workflow.
 **Value** — the project's full command surface is self-documenting and uniform.
@@ -686,138 +640,17 @@ different sets of instructions.
 
 ---
 
-## 14. Web service (FastAPI)
+## 14. Command-line contract
 
-The web service is optional (`--extra web`) and bakes in REST best practices.
-The full normative catalog is
-[design 0002 (`WEB-xx`)](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0002-web-api-conventions.md)
-and [ADR-0013](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0013-web-service-best-practices.md);
-the highlights:
-
-### FastAPI behind an extra
-**What** — FastAPI + uvicorn ship under `[project.optional-dependencies] web`,
-not in the core install.
-**Why** — CLI-only adopters shouldn't pay for web dependencies; gating them
-behind an extra keeps the base install lean.
-**Value** — opt-in web stack; the core stays minimal.
-**Refs** — `pyproject.toml`; ADR-0013.
-
-### RFC 9457 problem+json errors
-**What** — every non-2xx response is `application/problem+json` with
-`type/title/status/detail/instance`.
-**Why** — a standardized error shape means clients parse failures uniformly
-instead of guessing per-endpoint.
-**Value** — predictable, machine-readable errors.
-**Refs** — design 0002; WEB-01.
-
-### Versioned business routes, unversioned ops
-**What** — business endpoints live under `/v1`; `/healthz`, `/readyz`,
-`/metrics` are unversioned.
-**Why** — breaking changes get a `/v2` without disturbing operational endpoints
-that monitoring depends on.
-**Value** — a clean evolution path that doesn't break health checks.
-**Refs** — design 0002; WEB-02.
-
-### Pagination, idempotency, metrics, tracing, rate limiting, security headers
-**What** — collections paginate via `fastapi-pagination` (WEB-03); unsafe methods
-honor `Idempotency-Key` with replay marking (WEB-05); Prometheus RED metrics at
-`/metrics` (WEB-11); opt-in OpenTelemetry tracing (WEB-10); `slowapi` rate
-limiting off-by-default behind one env var (WEB-22); and `nosniff`/`DENY`/HSTS
-security headers on every response with optional CORS (WEB-23).
-**Why** — these are the cross-cutting concerns every production API needs; baking
-them in (correctly, off-by-default where appropriate) saves every adopter from
-reinventing them.
-**Value** — a service that's production-shaped on day one.
-**Refs** — design 0002; WEB-03/05/10/11/22/23.
-
-### Typed settings, fail-fast at boot
-**What** — `WebSettings` (pydantic-settings) reads `LOST_SESSIONS_WEB_*` env vars and
-fails at startup on invalid config.
-**Why** — configuration errors should crash immediately and loudly, not surface
-as confusing runtime behaviour.
-**Value** — misconfiguration is caught at deploy, not in production traffic.
-**Refs** — design 0002; WEB-30.
-
-### OpenAPI snapshot with breaking-change gate
-**What** — the OpenAPI document is committed at `docs/api/openapi.json`;
-`just export-openapi` regenerates it; a test fails when it's stale; and the
-`api-contract` workflow runs `oasdiff` to fail PRs that introduce breaking API
-changes. Typed clients are generated, never hand-written (WEB-60).
-**Why** — the API contract is an asset; committing it makes changes reviewable as
-a diff, and oasdiff turns "did we break clients?" into an automatic check.
-**Value** — accidental breaking changes are caught in review; clients stay in
-sync.
-**Refs** — `.github/workflows/api-contract.yml`, `Justfile`; WEB-51/60.
-
-### Production Dockerfile
-**What** — a multi-stage uv Dockerfile installs locked deps, runs as non-root on
-a slim base, healthchecks `/healthz` via stdlib `urllib`, and starts uvicorn with
-graceful shutdown.
-**Why** — a realistic, secure, minimal container image is what "production-ready"
-actually requires.
-**Value** — adopters get a deployable image, not a toy `Dockerfile`.
-**Refs** — `Dockerfile`; WEB-31/32.
-
-### One logging pipeline, two profiles
-**What** — a single `structlog` pipeline serves a human-readable CLI profile and
-a JSON-lines web profile, emitting one canonical `http_request` event per
-request.
-**Why** — sharing one pipeline avoids two divergent logging stacks while still
-giving humans readable logs and machines parseable ones.
-**Value** — consistent, structured logs across both front ends.
-**Refs** — [ADR-0015](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0015-one-logging-pipeline-two-profiles.md),
-[design 0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0003-logging-conventions.md); WEB-12.
+`lost-sessions` is a [click](https://click.palletsprojects.com/) group built by
+a factory (`build_cli()`), so plugins can add subcommands and tests can build a
+fresh CLI. Its commands, flags, defaults, exit codes (`0`/`1`/`2`) and stdout
+data match the original `lost-sessions` script; see Section 8 of
+[design 0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0006-lost-sessions-plugin-design.md).
 
 ---
 
-## 15. CLI conventions
-
-### Noun-verb command structure
-**What** — the `lost_sessions` CLI is noun-verb (`lost_sessions projects list`), gh-style, with
-text/JSON/Markdown output, stable exit codes, and layered TOML config.
-**Why** — noun-verb scales to many resources cleanly and matches the mental model
-users already have from `gh`, `kubectl`, etc.
-**Value** — a discoverable, conventional CLI that grows without restructuring.
-**Refs** — [design 0001](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0001-lost_sessions-cli-conventions.md),
-[EXAMPLECLI.md](https://github.com/smorinlabs/lost-sessions/blob/main/EXAMPLECLI.md).
-
-### Markdown as a third output format
-**What** — alongside text and JSON, the CLI emits Markdown.
-**Why** — Markdown output drops straight into issues, PRs, and docs — a common
-real-world need the base spec omitted.
-**Value** — copy-pasteable results for humans writing reports.
-**Refs** — [ADR-0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0003-keep-markdown-output-mode.md).
-
-### Stable error codes, hints, and a crash log
-**What** — errors carry stable, append-only codes, actionable hints, and write a
-reproducible crash log; the CLI exposes documented exit codes (0–5).
-**Why** — stable codes let scripts and docs reference errors reliably; hints and
-crash logs make failures self-service to debug.
-**Value** — scriptable, debuggable failure behaviour.
-**Refs** — [ADR-0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0006-stable-error-codes-hints-crash-log.md).
-
-### Config degrades to warnings, never crashes
-**What** — invalid config values warn and fall back to defaults rather than
-aborting.
-**Why** — one bad key shouldn't make the whole tool unusable; graceful
-degradation keeps it working while flagging the problem.
-**Value** — resilience to imperfect config.
-**Refs** — [ADR-0004](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0004-config-errors-degrade-to-warnings.md).
-
-### Quality-of-life touches
-**What** — did-you-mean suggestions via stdlib `difflib` (ADR-0007), automatic
-paging of long output (ADR-0008), a guided `config init` plus one-time first-run
-hint (ADR-0009), Windows-native default paths with XDG overrides (ADR-0011), and
-a redacting `doctor --bundle` that excludes log contents (ADR-0012).
-**Why** — these small affordances are what separate a pleasant CLI from a
-merely-functional one, and each was decided deliberately.
-**Value** — a polished, secure, cross-platform user experience.
-**Refs** — ADR-0007/0008/0009/0011/0012 (in
-[`docs/adr/`](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr)).
-
----
-
-## 16. Contributors & governance
+## 15. Contributors & governance
 
 ### Contributing guide, code of conduct, security policy
 **What** — `.github/CONTRIBUTING.md` (mirroring AGENTS.md), a Code of Conduct,
@@ -854,7 +687,7 @@ maintainers can opt in with `just contributors`.
 
 ---
 
-## 17. Template / rebrand system
+## 16. Template / rebrand system
 
 ### An external press, not an embedded engine
 **What** — rebranding is owned by the standalone `template-press` tool
@@ -892,7 +725,7 @@ identity.
 **Value** — guardrails against shipping an un-rebranded project.
 **Refs** — `scripts/guard.sh`, `Justfile` (`_guard`).
 
-## 18. AI agent tooling
+## 17. AI agent tooling
 
 ### `AGENTS.md` as the canonical agent config
 **What** — `AGENTS.md` is the one file every coding agent reads; `CLAUDE.md`
@@ -916,7 +749,7 @@ ADR-0014 records the source blueprint's original workflow.
 
 ---
 
-## 19. IDE integration
+## 18. IDE integration
 
 ### VS Code as the reference editor
 **What** — committed VS Code settings, a DevContainer, and recommended Ruff,
@@ -928,36 +761,36 @@ format-on-save, type-check, and lint behaviour without manual setup.
 
 ---
 
-## 20. Decision records index
+## 19. Decision records index
 
 The authoritative records behind the decisions above. ADRs and design docs live
 in [`docs/`](https://github.com/smorinlabs/lost-sessions/blob/main/docs);
-`WEB-xx` and `HEX-xx` are catalogued in their design specs.
+`HEX-xx` is catalogued in design 0005.
 
 | Record | Subject |
 |---|---|
 | [ADR-0001](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0001-app-short-name-lost_sessions.md) | App short name `lost_sessions` (superseded by 0016) |
-| [ADR-0002](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0002-no-secrets-in-config-file.md) | Secrets never in the config file |
-| [ADR-0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0003-keep-markdown-output-mode.md) | Markdown as a third output format |
-| [ADR-0004](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0004-config-errors-degrade-to-warnings.md) | Invalid config degrades to warnings |
+| [ADR-0002](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0002-no-secrets-in-config-file.md) | Secrets never in the config file (superseded by ADR-0020) |
+| [ADR-0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0003-keep-markdown-output-mode.md) | Markdown as a third output format (superseded by ADR-0020) |
+| [ADR-0004](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0004-config-errors-degrade-to-warnings.md) | Invalid config degrades to warnings (superseded by ADR-0020) |
 | [ADR-0005](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0005-mise-flox-first-class-toolchains.md) | mise & flox as first-class toolchains |
-| [ADR-0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0006-stable-error-codes-hints-crash-log.md) | Stable error codes, hints, crash log |
-| [ADR-0007](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0007-did-you-mean-stdlib-difflib.md) | Did-you-mean via stdlib `difflib` |
-| [ADR-0008](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0008-pager-for-long-text-output.md) | Pager for long text output |
-| [ADR-0009](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0009-config-init-and-first-run-hint.md) | Guided `config init` + first-run hint |
-| [ADR-0010](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0010-rich-row-variant-on-result-models.md) | Rich-only row variant on result models |
-| [ADR-0011](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0011-windows-native-paths-xdg-overrides.md) | Windows-native paths, XDG overrides |
-| [ADR-0012](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0012-doctor-bundle-redact-at-collection.md) | `doctor --bundle` redacts at collection |
-| [ADR-0013](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0013-web-service-best-practices.md) | Web service best practices (`WEB-xx`) |
+| [ADR-0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0006-stable-error-codes-hints-crash-log.md) | Stable error codes, hints, crash log (superseded by ADR-0020) |
+| [ADR-0007](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0007-did-you-mean-stdlib-difflib.md) | Did-you-mean via stdlib `difflib` (superseded by ADR-0020) |
+| [ADR-0008](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0008-pager-for-long-text-output.md) | Pager for long text output (superseded by ADR-0020) |
+| [ADR-0009](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0009-config-init-and-first-run-hint.md) | Guided `config init` + first-run hint (superseded by ADR-0020) |
+| [ADR-0010](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0010-rich-row-variant-on-result-models.md) | Rich-only row variant on result models (superseded by ADR-0020) |
+| [ADR-0011](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0011-windows-native-paths-xdg-overrides.md) | Windows-native paths, XDG overrides (superseded by ADR-0020) |
+| [ADR-0012](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0012-doctor-bundle-redact-at-collection.md) | `doctor --bundle` redacts at collection (superseded by ADR-0020) |
+| [ADR-0013](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0013-web-service-best-practices.md) | Web service best practices (`WEB-xx`) (superseded by ADR-0020) |
 | [ADR-0014](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0014-repo-simplification-batch.md) | Repo simplification batch |
-| [ADR-0015](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0015-one-logging-pipeline-two-profiles.md) | One logging pipeline, two profiles |
-| [ADR-0016](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0016-app-short-name-placeholder.md) | App short name as obvious placeholder |
-| [ADR-0017](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0017-hexagonal-core-and-boundary-enforcement.md) | Hexagonal core + boundary enforcement |
-| [Design 0001](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0001-lost_sessions-cli-conventions.md) | CLI conventions |
-| [Design 0002](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0002-web-api-conventions.md) | Web API conventions (`WEB-xx`) |
-| [Design 0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0003-logging-conventions.md) | Logging conventions |
+| [ADR-0015](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0015-one-logging-pipeline-two-profiles.md) | One logging pipeline, two profiles (superseded by ADR-0020) |
+| [ADR-0016](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0016-app-short-name-placeholder.md) | App short name as obvious placeholder (superseded by ADR-0020) |
+| [ADR-0017](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0017-hexagonal-core-and-boundary-enforcement.md) | Hexagonal core + boundary enforcement (superseded by ADR-0020) |
+| [ADR-0020](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0020-lost-sessions-replaces-template-cli-and-web.md) | lost-sessions replaces the template CLI and web service |
+| [Design 0003](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0003-logging-conventions.md) | Logging conventions (superseded by ADR-0020) |
 | [Design 0004](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0004-template-press-plan.md) | Template Press (init engine) |
-| [Design 0005](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0005-hexagonal-architecture-and-enforcement.md) | Hexagonal architecture (`HEX-xx`) |
+| [Design 0005](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0005-hexagonal-architecture-and-enforcement.md) | Hexagonal architecture (`HEX-xx`) (superseded by design 0006) |
+| [Design 0006](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0006-lost-sessions-plugin-design.md) | lost-sessions plugin design |
 
 For the conventions the maintainer follows when writing new records, see the
 READMEs in [`docs/adr/`](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr),

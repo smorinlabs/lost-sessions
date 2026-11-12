@@ -1,30 +1,18 @@
 # lost-sessions
 
-> A production-ready Python CLI project template with best practices baked
-> in: a gh-style noun-verb CLI (`lost_sessions`) on Click, a typed core library
-> (Pydantic result models are the output contract), layered TOML config in
-> platform-native locations, structured logging, and a fork-ready rename
-> system (the external `template-press` engine) so the whole stack can be rebranded in one command.
-
-Architecture in one line: `core/` holds pure logic and models (no printing),
-`cli/` is thin presentation over it, `web/` is an optional FastAPI front-end
-behind the `web` extra — every front-end renders the same result models.
+> Recover Claude Code, Codex, Muse and OpenCode sessions that a reboot dropped:
+> find the sessions that started before the last boot and that no session
+> manager restores, then print their resume commands or reopen them in Herdr
+> or Rex. Agents and session managers are plugins (pluggy, as in simonw/llm).
 
 ## Docs
 
-- [README](https://github.com/smorinlabs/lost-sessions/blob/main/README.md): overview, installation, and feature tour
-- [CLI conventions](https://github.com/smorinlabs/lost-sessions/blob/main/EXAMPLECLI.md): the `lost_sessions` command shapes, global flags, output contract, exit and error codes
-- [Documentation site](https://lost-sessions.readthedocs.io/en/latest/): full rendered docs
-- [Agent guidelines](https://github.com/smorinlabs/lost-sessions/blob/main/CLAUDE.md): commands and rules for AI coding agents working in this repo
+- [README](https://github.com/smorinlabs/lost-sessions/blob/main/README.md): overview and installation
+- [Plugin design](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0006-lost-sessions-plugin-design.md): hookspecs, plugin contracts, data models, the CLI contract
+- [Agent guidelines](https://github.com/smorinlabs/lost-sessions/blob/main/AGENTS.md): commands and rules for AI coding agents working in this repo
 - [Changelog](https://github.com/smorinlabs/lost-sessions/blob/main/CHANGELOG.md): release history (release-please managed)
-
-## Using the CLI
-
-- [Global flags and output contract](https://github.com/smorinlabs/lost-sessions/blob/main/EXAMPLECLI.md): results on stdout, logs/errors on stderr; `-o text|json|markdown` everywhere; stable exit codes and `LOST_SESSIONS###` error codes
-- [Configuration](https://github.com/smorinlabs/lost-sessions/blob/main/EXAMPLECLI.md): layered TOML (`system → user → project`), `lost_sessions config init|get|set|path`, secrets never stored in files
 
 ## Optional
 
-- [Contributing](https://github.com/smorinlabs/lost-sessions/blob/main/docs/source/contributing/index.md): contribution guide and optional contributor tracking
 - [Release process](https://github.com/smorinlabs/lost-sessions/blob/main/docs/RELEASE.md): release-please + OIDC trusted publishing
-- [Project setup](https://github.com/smorinlabs/lost-sessions/blob/main/docs/PROJECT_SETUP.md): development setup and optional repository and service configuration after rebranding
+- [Project setup](https://github.com/smorinlabs/lost-sessions/blob/main/docs/PROJECT_SETUP.md): repository and service configuration

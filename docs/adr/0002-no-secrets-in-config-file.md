@@ -1,6 +1,6 @@
 # 0002. Secrets are never stored in the config file
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-09
 - **Deciders:** maintainer (interactive), implemented in PR #378
 - **Related:** [design 0001](../design/0001-lost_sessions-cli-conventions.md) §8 (R8)

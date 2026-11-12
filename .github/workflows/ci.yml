@@ -123,14 +123,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v8.3.2
       - name: Sync dev env (ty needs project deps on the python path)
-        run: uv sync --locked --group dev --extra web
+        run: uv sync --locked --group dev
       - name: ty check
         run: uv run --no-sync ty check src/lost_sessions/
 
-  # ADR 0018 - architectural boundary gate. import-linter (HEX-30) and tach
-  # (HEX-31) previously ran ONLY in the pre-push hook / `just check`, so a
+  # ADR 0018 - architectural boundary gate. import-linter (HEX-30)
+  # previously ran ONLY in the pre-push hook / `just check`, so a
   # --no-verify push or an uninstalled hook could land boundary violations
-  # with no CI gate. Both build an import/module graph, so gate behind the
+  # with no CI gate. It builds an import graph, so gate behind the
   # changes detector (skip docs-only PRs) like typecheck. WL-001: locked via
   # uv.lock, matching the pre-push hook exactly.
   import-boundaries:
@@ -145,11 +145,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v8.3.2
       - name: Sync dev env (graph build needs project deps importable)
-        run: uv sync --locked --group dev --extra web
+        run: uv sync --locked --group dev
       - name: import-linter (HEX-30)
         run: uv run --no-sync lint-imports
-      - name: tach (HEX-31)
-        run: uv run --no-sync tach check
 
   # ITM-030 - test matrix: ubuntu + macOS x py3.13 (decided round 3);
   # windows added alongside the platform-native default paths (REC-24).
@@ -183,7 +181,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Sync dev env
-        run: uv sync --locked --group dev --extra web  # PEP 735; web extra covers web/
+        run: uv sync --locked --group dev  # PEP 735
       # Coverage runs only on the one matrix cell that uploads it. Every other
       # cell used to compute coverage and discard it — the Codecov step below
       # has always been gated to ubuntu/3.13 — while still paying for the
@@ -220,31 +218,6 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
 
-  # P10 / sweep ISS-001 - the matrix above installs only the web extra, so
-  # the tracing path (web/telemetry.py, core/logging.py trace stamping) never
-  # runs there and opentelemetry-* bumps went untested at PR time. This leg
-  # adds the otel extra and runs the suites that exercise it; the matrix keeps
-  # covering the default no-otel install and its degrade path.
-  test-otel:
-    name: test-otel
-    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.3.2
-        with:
-          python-version: "3.13"
-      - name: Sync dev env with the otel extra
-        run: uv sync --locked --group dev --extra web --extra otel
-      - name: Run tracing-relevant tests
-        run: >-
-          uv run --no-sync pytest -m "not live" -n auto
-          tests/web tests/core/test_logging.py
-
   # WL-004 - build + install smoke test. Catches packaging breakage (missing
   # files, broken entry point, bad metadata) at PR time instead of at the
   # release tag. uv end-to-end: uv build -> twine metadata check (locked via
@@ -267,9 +240,9 @@ jobs:
       - name: Check dist metadata (twine)
         run: uv run --no-sync twine check dist/*
       - name: Smoke test wheel install
-        run: uvx --from "$(ls dist/*.whl)" lost_sessions --version
+        run: uvx --from "$(ls dist/*.whl)" lost-sessions --version
       - name: Smoke test sdist install
-        run: uvx --from "$(ls dist/*.tar.gz)" lost_sessions --version
+        run: uvx --from "$(ls dist/*.tar.gz)" lost-sessions --version
 
   # WL-021 - docs build with warnings-as-errors. Broken cross-references and
   # autodoc failures block the PR instead of surfacing on ReadTheDocs after
@@ -284,8 +257,8 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - name: Install uv
         uses: astral-sh/setup-uv@v8.3.2
-      - name: Sync docs env (web extra so autodoc imports resolve)
-        run: uv sync --locked --group docs --extra web
+      - name: Sync docs env
+        run: uv sync --locked --group docs
       - name: Sphinx build (warnings are errors)
         run: uv run --no-sync sphinx-build -W -b html docs/source docs/_build/html
 
@@ -337,7 +310,6 @@ jobs:
       - typecheck
       - import-boundaries
       - test
-      - test-otel
       - build-smoke
       - docs
       - toml-format

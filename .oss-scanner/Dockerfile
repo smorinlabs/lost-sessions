@@ -21,8 +21,8 @@ ENV PATH="/root/.local/bin:$PATH"
 COPY . /src
 WORKDIR /src
 
-# Dev tools plus every extra (web, otel), so all code paths run offline.
-RUN uv sync --locked --group dev --all-extras \
+# Dev tools, so all code paths run offline.
+RUN uv sync --locked --group dev \
     && bun install --frozen-lockfile
 # Offline from here on: never re-resolve, and expose the venv directly.
 ENV UV_NO_SYNC=1 \

@@ -1,6 +1,6 @@
 # 0008. Long text output pages through the user's pager
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive + Copilot/CodeRabbit review), implemented in PR #400
 - **Related:** `cli/output.py`; `EXAMPLECLI.md` §"Output contract"; design 0001 (R3/R4)

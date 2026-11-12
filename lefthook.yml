@@ -6,7 +6,7 @@
 #                ITM-013 (yamllint), ITM-016 (codespell),
 #                ITM-066 (ruff check + ruff format), taplo (ADR 0018)
 #   pre-push:    ITM-002 (gitleaks range scan), ITM-032 (bandit),
-#                HEX-30 (import-linter), HEX-31 (tach, ADR 0018),
+#                HEX-30 (import-linter, ADR 0018),
 #                ty typecheck (ADR-03 / ADR 0018), init-system integrity
 # Tiering: fast staged-scoped checks at pre-commit; slower full-tree checks
 # at pre-push. CI (.github/workflows/ci.yml + lint.yml) is the authority —
@@ -167,27 +167,15 @@ pre-push:
       run: uv run bandit -r src/lost_sessions/ -c pyproject.toml
     # ADR 0018 — ty typecheck at pre-push, mirroring CI's typecheck job.
     # Pre-push (not pre-commit) since it is a full-tree check, too slow per
-    # commit (same tier as bandit). `--extra web` so web/ imports resolve
+    # commit (same tier as bandit).
     # (matches ADR-03 / the just typecheck recipe). WL-001: locked dev group.
     ty:
-      run: uv run --extra web ty check src/lost_sessions/
+      run: uv run ty check src/lost_sessions/
     # HEX-30 — architectural import boundaries (import-linter). At pre-push
     # (not pre-commit) since it builds the whole import graph. WL-001: locked
     # via the dev group. Now also authoritatively gated in CI (ADR 0018).
     import-boundaries:
       run: uv run lint-imports
-    # HEX-31 — bounded-context boundaries (tach). Added at pre-push alongside
-    # import-linter for local parity with the CI import-boundaries job (ADR
-    # 0018). WL-001: locked via the dev group.
-    module-boundaries:
-      run: uv run tach check
-    # ADR 0018 — OpenAPI snapshot drift. The committed docs/api/openapi.json
-    # must match the live FastAPI schema; the api-contract CI workflow + this
-    # test enforce it. Gated on web-layer changes so non-web pushes skip it;
-    # mirrors `just export-openapi` having been run after a route change.
-    openapi-snapshot:
-      glob: "src/lost_sessions/web/**/*"
-      run: uv run --extra web pytest tests/web/test_openapi_snapshot.py -q
     # Press drift guard (P06) — replaces the four init-integrity gates.
     # `press verify` hermetically self-presses a sandbox copy and scans
     # for surviving identity; runs in generated projects too (a pressed

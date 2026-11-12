@@ -26,8 +26,8 @@ Run this for every fresh clone or development environment:
 just setup
 ```
 
-This syncs the locked development and web dependencies with
-`uv sync --locked --group dev --extra web`, installs the hook toolchain, and
+This syncs the locked development dependencies with
+`uv sync --locked --group dev`, installs the hook toolchain, and
 wires Lefthook's Git hooks. It also installs commitlint's dependencies with
 `bun install --frozen-lockfile`.
 
@@ -39,21 +39,20 @@ hooks; use `just setup` before committing or pushing.
 
 ```bash
 just check
-uv run --locked lost_sessions --version
+uv run --locked lost-sessions --version
 ```
 
 `just check` runs the tests, lint and format checks, type checks, import
 boundaries, spelling, YAML, and EditorConfig checks. Both commands must exit
-successfully. Use the [CLI reference](../reference/cli_reference.md) and
-[web documentation](../web/index.md) for the application interfaces.
+successfully. Use the [CLI reference](../reference/cli_reference.md) for the application interface.
 
 For individual checks, use the locked environment:
 
 ```bash
 uv run --locked ruff format --check .
 uv run --locked ruff check .
-uv run --locked --extra web ty check src/lost_sessions/
-uv run --locked --extra web pytest
+uv run --locked ty check src/lost_sessions/
+uv run --locked pytest
 ```
 
 ## Optional toolchain provisioning
