@@ -36,14 +36,13 @@ lost-sessions/
 │   │   └── contributing/           # Contribution guidelines
 │   └── build/                      # Built documentation files
 ├── src/lost_sessions/        # Source code for the project
-│   ├── __init__.py                 # Package initialization
-│   ├── cli/                        # Click CLI (thin presentation layer)
-│   ├── core/                       # Library: logic + Pydantic models
-│   └── web/                        # FastAPI web service (behind the `web` extra)
+│   ├── __init__.py                 # Package initialization and public API
+│   ├── cli.py                      # Click CLI (`lost-sessions`), built by `build_cli()`
+│   └── default_plugins/            # Built-in agent and session-manager plugins
 ├── tests/                          # Test files
 │   ├── __init__.py                 # Test package initialization
-│   ├── cli/                        # CLI tests
-│   └── core/                       # Library tests
+│   ├── meta/                       # Repository and workflow contract tests
+│   └── release/                    # Release tooling tests
 ├── .flox/                          # Flox environment (optional toolchain provisioner; ADR 0005)
 │   └── env/manifest.toml           # Declares the 12-tool dev set for `flox activate`
 ├── .gitignore                      # Git ignore file
@@ -70,25 +69,22 @@ lost-sessions/
 │   │   ├── reference/              # Technical references
 │   │   └── contributing/           # Contribution guidelines
 │   └── build/                      # Built documentation files
-├── EXAMPLECLI.md                   # Example CLI documentation
-├── EXAMPLEWEB.md                   # Example web service documentation
 ├── Justfile                        # Just task runner configuration
 ├── Makefile                        # Makefile for building the project
 ├── mise.toml                       # mise toolchain (optional provisioner; ADR 0005)
 ├── PULL_REQUEST_TEMPLATE.md        # Pull request template
 ├── src/lost_sessions/        # Source code for the project
-│   ├── __init__.py                 # Package initialization
-│   ├── cli/                        # Click CLI (thin presentation layer)
-│   ├── core/                       # Library: logic + Pydantic models
-│   └── web/                        # FastAPI web service (behind the `web` extra)
+│   ├── __init__.py                 # Package initialization and public API
+│   ├── cli.py                      # Click CLI (`lost-sessions`), built by `build_cli()`
+│   └── default_plugins/            # Built-in agent and session-manager plugins
 ├── pyproject.toml                  # Project configuration file
 ├── CONTRIBUTORS.md                 # Optional: created by contributor tooling
 ├── README.md                       # Project overview and navigation
 ├── SECURITY.md                     # Security policy
 └── tests/                          # Test files
     ├── __init__.py                 # Test package initialization
-    ├── cli/                        # CLI tests
-    └── core/                       # Library tests
+    ├── meta/                       # Repository and workflow contract tests
+    └── release/                    # Release tooling tests
 ```
 
 ## Directory Descriptions
@@ -103,11 +99,11 @@ Contains all documentation files, including Sphinx source files, static assets, 
 
 ### src/lost_sessions/
 
-Contains the source code for the project, organized into the `cli/`, `core/`, and `web/` layers.
+Contains the source code: the CLI, the plugin manager and hook specifications, and the built-in plugins. See design 0006 in `docs/design/` for the layout.
 
 ### tests/
 
-Contains test files for the project, organized under `tests/cli/`, `tests/core/`, and `tests/web/`.
+Contains the test suite, including repository contract tests under `tests/meta/`.
 
 ### .gitignore
 
@@ -140,14 +136,6 @@ Specifies the code of conduct for contributors to the project.
 ### CONTRIBUTING.md
 
 Provides guidelines for contributing to the project.
-
-### EXAMPLECLI.md
-
-Contains documentation for the example CLI tool.
-
-### EXAMPLEWEB.md
-
-Contains documentation for the example FastAPI web service (the `web` extra).
 
 ### Justfile
 

@@ -14,8 +14,7 @@ for alternative toolchain provisioning options.
 just setup
 ```
 
-This installs the locked development dependencies, the optional web dependencies,
-and the Git hook toolchain. Run it for each fresh clone or development environment.
+This installs the locked development dependencies and the Git hook toolchain. Run it for each fresh clone or development environment.
 
 ## Verify the application
 
@@ -28,8 +27,7 @@ rules. A successful run exits with no failed checks.
 
 Use the [CLI reference](../reference/cli_reference.md) to run the application
 from a terminal. Its command name is listed in `pyproject.toml` under
-`[project.scripts]`. The [web documentation](../web/index.md) explains how to
-start and check the optional web interface.
+`[project.scripts]`.
 
 ## Build distribution files
 

@@ -44,7 +44,7 @@ jobs:
         # --upgrade ignores the committed uv.lock pins and picks the newest
         # versions satisfying pyproject constraints. This is the whole point of
         # the canary; do NOT add --locked here.
-        run: uv sync --upgrade --group dev --extra web
+        run: uv sync --upgrade --group dev
 
       - name: Run the hermetic suite (including slow tests)
         # `-m "not live"` includes slow tests without requiring external services.

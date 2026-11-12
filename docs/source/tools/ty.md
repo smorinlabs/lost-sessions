@@ -56,7 +56,7 @@ uv add --group dev types-requests
 ## Type checking only specific files
 
 ```bash
-uv run ty check src/lost_sessions/cli/main.py
+uv run ty check src/lost_sessions/cli.py
 ```
 
 ## VS Code Settings for pyright/Pylance

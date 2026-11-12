@@ -12,10 +12,9 @@ The main workflow is `.github/workflows/ci.yml`. It runs for pull requests to
 |---|---|
 | `changes` | Detects code and packaging changes; documentation-only pull requests can skip the heavier jobs. |
 | `lint` | Ruff lint and formatting checks using locked development tools. |
-| `typecheck` | Types under `src/lost_sessions/`, with the web extra installed. |
-| `import-boundaries` | Import and module boundaries through import-linter and Tach. |
+| `typecheck` | Types under `src/lost_sessions/`. |
+| `import-boundaries` | Import contracts through import-linter. |
 | `test` | Python 3.13 on Linux, macOS and Windows; Python 3.14 on Linux. Includes slow tests and excludes provisioned live tests. |
-| `test-otel` | Python 3.13 on Linux with the `otel` extra. Runs the web and logging tests so the tracing path is exercised. |
 | `build-smoke` | Builds wheel and source archives, checks metadata, installs both and runs the CLI. |
 | `docs` | Builds Sphinx documentation with warnings treated as errors. |
 | `toml-format-check` | Checks TOML formatting. |
@@ -27,7 +26,7 @@ Python 3.13 remains the minimum supported version and default development interp
 
 `.github/workflows/lint.yml` adds Actionlint, Bandit, spelling, EditorConfig
 and YAML checks. Other workflows handle press conformance, secret scanning,
-dependency review, CodeQL and container checks. Required check names come from
+dependency review and CodeQL. Required check names come from
 GitHub branch protection and repository rules; keep those rules aligned when
 renaming or removing jobs.
 
@@ -41,14 +40,14 @@ just check
 uv run --locked press verify
 ```
 
-`just setup` installs the native tools, locked development/web dependencies and
+`just setup` installs the native tools, locked development dependencies and
 Lefthook hooks. See [Setting Up Development](setting_up_development.md) for
 fresh-machine setup.
 
 To reproduce a CI test job, select its Python version and include slow tests:
 
 ```bash
-uv sync --locked --python 3.14 --group dev --extra web
+uv sync --locked --python 3.14 --group dev
 uv run --no-sync pytest -m "not live" -n auto
 ```
 
@@ -67,20 +66,9 @@ required PR check and does not commit its temporary lock changes.
 
 ## Blueprint generation acceptance
 
-Before rebranding, `.github/workflows/bootstrap-acceptance.yml` provisions the
-native toolchain and runs `tests/bootstrap` weekly, on manual dispatch, and
-for pull requests changing bootstrap-related files. It generates a fresh
-application, runs its setup and checks, builds documentation and distributions,
-and exercises its CLI and web health endpoint. It creates no GitHub repository
-and publishes nothing. Generic CI continues to exclude these live tests.
-
-Generation removes this blueprint-only workflow and its tests. Application
-maintainers should add acceptance tests for their own application behavior.
-
 ## Releases
 
 `.github/workflows/release-please.yml` prepares release PRs after pushes to
 `main`. Tagged releases trigger `publish.yml`, which publishes to TestPyPI
-before PyPI. `publish-container.yml` checks containers on PRs and publishes
-stable release images separately. Configure the required services before the
+before PyPI. Configure the required services before the
 first release; see [release instructions](https://github.com/smorinlabs/lost-sessions/blob/main/docs/RELEASE.md).

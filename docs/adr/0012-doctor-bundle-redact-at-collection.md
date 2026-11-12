@@ -1,6 +1,6 @@
 # 0012. `doctor --bundle` redacts at collection time, excludes log contents
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive), implemented in PR #400
 - **Related:** `core/diagnostics.py`; `core/models.py` (`DiagnosticsBundle`); ADR 0002

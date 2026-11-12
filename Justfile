@@ -4,7 +4,7 @@ py_package_name := "lost_sessions"
 # `py_package_name`; tooling that takes a *path* uses this.
 py_package_path := "src/" + py_package_name
 repo_name := "lost-sessions"
-app_name := "lost_sessions"
+app_name := "lost-sessions"
 contributors_owner := "smorinlabs"
 contributors_package := "contributors-please@1"
 args := " "
@@ -128,8 +128,8 @@ setup:
     # Tools installed below land in these dirs; make them visible to the
     # rest of this run (the final check-deps) even on a fresh machine.
     export PATH="$HOME/.local/bin:$HOME/.bun/bin:${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-    echo -e "{{BLUE}}[1/4] Syncing dev environment: uv sync --locked --group dev --extra web{{NC}}"
-    uv sync --locked --group dev --extra web
+    echo -e "{{BLUE}}[1/4] Syncing dev environment: uv sync --locked --group dev{{NC}}"
+    uv sync --locked --group dev
     # Generation removes template planning history; retain an empty scaffold.
     if [ -f PROJECTS.md ]; then
         mkdir -p projects
@@ -153,7 +153,7 @@ setup:
 # Install package in editable mode with dev dependencies
 [group('install'), group('quick start')]
 @install-dev: check-deps
-    uv sync --locked --group dev --extra web
+    uv sync --locked --group dev
 
 # Install Taplo from upstream pre-built binary (much faster than `cargo install`,
 # which compiles from source — ~1s vs ~2min). Detects OS + arch and pulls the
@@ -241,7 +241,7 @@ alias l := lint
 @typecheck:
     echo "Running type checker..."
     echo "  ty (ITM-026, per ADR-03)"
-    uv run --extra web ty check {{py_package_path}}/
+    uv run ty check {{py_package_path}}/
 
 alias tc := typecheck
 
@@ -253,13 +253,6 @@ alias tc := typecheck
     uv run lint-imports
 
 alias li := lint-imports
-
-# Verify bounded-context boundaries (HEX-31; tach)
-[group('dev')]
-@tach:
-    echo "Checking module boundaries..."
-    echo "  tach (HEX-31)"
-    uv run tach check
 
 # Run tests
 [group('test'), group('dev')]
@@ -286,7 +279,7 @@ alias t := test
 
 # Run all checks
 [group('test'), group('dev'), group('quick start')]
-@check: test test-release lint typecheck lint-imports tach check-yaml check-spelling check-editorconfig check-shell
+@check: test test-release lint typecheck lint-imports check-yaml check-spelling check-editorconfig check-shell
     echo "All checks passed!"
 
 alias ca := check
@@ -296,40 +289,7 @@ alias ca := check
 @run cmd=app_name *args=args:
     uvx --with-editable . {{cmd}} {{args}}
 
-# Run the FastAPI dev server (web extra) with auto-reload. Dev defaults to
-# pretty console logs (prod default is JSON; WEB-12) — export
-# <APP_NAME>_WEB_LOG_FORMAT yourself to override.
-[group('run'), group('dev')]
-serve host="127.0.0.1" port="8000":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    var="$(echo {{app_name}} | tr '[:lower:]' '[:upper:]')_WEB_LOG_FORMAT"
-    export "${var}=${!var:-console}"
-    exec uv run --extra web uvicorn {{py_package_name}}.web.app:create_app --factory --host {{host}} --port {{port}} --reload --timeout-graceful-shutdown 5
-
-# Run web layer tests incl. slow contract fuzzing (web extra; httpx for TestClient)
-[group('test'), group('dev')]
-@test-web *options:
-    uv run --extra web pytest tests/web -m "" {{options}}
-
-# Regenerate the committed OpenAPI snapshot (WEB-51). Run after ANY route
-# change — tests/web/test_openapi_snapshot.py fails until you do.
-[group('build'), group('dev')]
-@export-openapi:
-    uv run --extra web python scripts/export_openapi.py
-
-# Generate a typed Python client from the OpenAPI snapshot (WEB-60)
-[group('build')]
-@client-python out="clients/python":
-    uvx openapi-python-client generate --path docs/api/openapi.json --output-path {{out}} --overwrite
-    echo "client written to {{out}}"
-
-# Build the production web-service image (WEB-32)
-[group('build')]
-@docker-web tag="lost_sessions-web:dev": _guard
-    docker build -t {{tag}} .
-
-# Audit locked dependencies (all extras + groups) against known CVEs (WL-014).
+# Audit locked dependencies (all groups) against known CVEs (WL-014).
 # Same pipeline as the scheduled dep-audit workflow.
 [group('dev')]
 audit:
@@ -337,7 +297,7 @@ audit:
     set -euo pipefail
     tmp="$(mktemp)"
     trap 'rm -f "$tmp"' EXIT
-    uv export --locked --no-emit-project --all-extras --all-groups \
+    uv export --locked --no-emit-project --all-groups \
         --format requirements.txt --quiet -o "$tmp"
     uv run pip-audit --strict --disable-pip -r "$tmp"
 

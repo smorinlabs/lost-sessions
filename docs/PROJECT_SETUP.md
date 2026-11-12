@@ -61,14 +61,6 @@ setup in [§2](#2-checks--configuration).
       needs PyPI + environment config.* File: `.github/workflows/publish.yml`,
       `.pypirc.template` (manual fallback). Remove the workflow if the project is
       not distributed on PyPI.
-- [ ] **Publish the web container to public GHCR** — *Default: on for published
-      stable releases, needs one-time package visibility setup.* File:
-      `.github/workflows/publish-container.yml`; helper:
-      `scripts/publish_container.py`. The image name uses this repository's
-      lowercase owner/name. Remove the workflow if the project does not ship
-      the web image, and adjust the release PR title in
-      `release-please-config.json` to name the channels you kept. See
-      [GHCR setup and recovery](RELEASE.md#public-container-publishing-ghcr).
 - [ ] **Read the Docs hosting** — *Default: configured, needs RTD import.* File:
       `.readthedocs.yaml` + `docs/`. Remove if you don't host docs on RTD.
 - [ ] **Codecov coverage reporting** — *Default: on, tokenless on public repos.*
@@ -146,7 +138,6 @@ scripts/setup-github-environments.sh <owner>/<repo>
 | **CodeQL** | In **Settings → Code security**, ensure **default setup is OFF** (advanced setup is mutually exclusive with it — see `.github/SECURITY.md`). To verify/disable: `gh api /repos/<owner>/<repo>/code-scanning/default-setup` then `gh api --method PATCH … -f state=not-configured`. | `codeql.yml`, `codeql-config.yml` |
 | **TestPyPI trusted publisher** | On test.pypi.org → your project → *Publishing* → add a GitHub Actions trusted publisher: this repo, workflow `publish.yml`, environment `testpypi`. The shipped workflow must complete this stage before publishing to PyPI. | `publish.yml` |
 | **PyPI trusted publisher** | On pypi.org → your project → *Publishing* → add a GitHub Actions trusted publisher: this repo, workflow `publish.yml`, environment `pypi`. | `publish.yml` |
-| **GHCR package** | After the first upload, set the container package to **Public** and rerun the failed anonymous-access check. Ensure the package grants this repository Actions write access and the organization permits public packages. | `publish-container.yml`; [release instructions](RELEASE.md#public-container-publishing-ghcr) |
 | **Codecov** | Add the repo at codecov.io. Public repos need no token (OIDC). | `.codecov.yml` |
 | **Read the Docs** | Import the project at readthedocs.org; it reads `.readthedocs.yaml`. | `.readthedocs.yaml` |
 | **Dependabot** | Enable **Dependabot version + security updates** in Settings; `dependabot.yml` does the rest. | `.github/dependabot.yml` |
@@ -183,7 +174,7 @@ Under **Settings**:
 ```bash
 # Bare machines only: install the base toolchain (just + uv).
 make bootstrap
-# Every fresh clone: locked dev + web dependencies, local Bun dependencies,
+# Every fresh clone: locked dev dependencies, local Bun dependencies,
 # hooks, and the complete check toolchain.
 just setup
 just check

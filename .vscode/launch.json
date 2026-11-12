@@ -2,25 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Launch Main",
+            "name": "Python: lost-sessions --help",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/src/lost_sessions/cli/main.py",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: Launch Main (With Args)",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/lost_sessions/cli/main.py",
-            "args": [
-                "projects",
-                "list",
-                "--workspace",
-                "test",
-                "--limit",
-                "10"
-            ],
+            "module": "lost_sessions",
+            "args": ["--help"],
             "console": "integratedTerminal"
         }
     ]

@@ -20,24 +20,25 @@ Start from [`template.md`](template.md).
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-app-short-name-lost_sessions.md) | App short name `lost_sessions` (hard rename from `pylb`) | Superseded by 0016 |
-| [0002](0002-no-secrets-in-config-file.md) | Secrets are never stored in the config file | Accepted |
-| [0003](0003-keep-markdown-output-mode.md) | Keep `markdown` as a third output format (spec deviation) | Accepted |
-| [0004](0004-config-errors-degrade-to-warnings.md) | Invalid config values degrade to warnings, never crashes | Accepted |
+| [0002](0002-no-secrets-in-config-file.md) | Secrets are never stored in the config file | Superseded by 0020 |
+| [0003](0003-keep-markdown-output-mode.md) | Keep `markdown` as a third output format (spec deviation) | Superseded by 0020 |
+| [0004](0004-config-errors-degrade-to-warnings.md) | Invalid config values degrade to warnings, never crashes | Superseded by 0020 |
 | [0005](0005-mise-flox-first-class-toolchains.md) | mise and flox are first-class toolchain provisioners (lean 10-tool set) | Accepted (amended by 0018) |
-| [0006](0006-stable-error-codes-hints-crash-log.md) | Stable error codes, hints, and a crash log | Accepted |
-| [0007](0007-did-you-mean-stdlib-difflib.md) | Did-you-mean suggestions via stdlib difflib | Accepted |
-| [0008](0008-pager-for-long-text-output.md) | Long text output pages through the user's pager | Accepted |
-| [0009](0009-config-init-and-first-run-hint.md) | Guided `config init` plus a marker-backed one-time first-run hint | Accepted |
-| [0010](0010-rich-row-variant-on-result-models.md) | Terminal niceties via a rich-only row variant on result models | Accepted |
-| [0011](0011-windows-native-paths-xdg-overrides.md) | Windows-native default directories; XDG overrides win everywhere | Accepted |
-| [0012](0012-doctor-bundle-redact-at-collection.md) | `doctor --bundle` redacts at collection time, excludes log contents | Accepted |
-| [0013](0013-web-service-best-practices.md) | Web service: baked-in REST best practices behind the `web` extra | Accepted |
+| [0006](0006-stable-error-codes-hints-crash-log.md) | Stable error codes, hints, and a crash log | Superseded by 0020 |
+| [0007](0007-did-you-mean-stdlib-difflib.md) | Did-you-mean suggestions via stdlib difflib | Superseded by 0020 |
+| [0008](0008-pager-for-long-text-output.md) | Long text output pages through the user's pager | Superseded by 0020 |
+| [0009](0009-config-init-and-first-run-hint.md) | Guided `config init` plus a marker-backed one-time first-run hint | Superseded by 0020 |
+| [0010](0010-rich-row-variant-on-result-models.md) | Terminal niceties via a rich-only row variant on result models | Superseded by 0020 |
+| [0011](0011-windows-native-paths-xdg-overrides.md) | Windows-native default directories; XDG overrides win everywhere | Superseded by 0020 |
+| [0012](0012-doctor-bundle-redact-at-collection.md) | `doctor --bundle` redacts at collection time, excludes log contents | Superseded by 0020 |
+| [0013](0013-web-service-best-practices.md) | Web service: baked-in REST best practices behind the `web` extra | Superseded by 0020 |
 | [0014](0014-repo-simplification-batch.md) | Repo simplification batch — canonical agent config, skill placement, docs & CI layout (SIMP series) | Accepted |
-| [0015](0015-one-logging-pipeline-two-profiles.md) | One logging pipeline, two front-end profiles (CLI vs web policy) | Accepted |
-| [0016](0016-app-short-name-placeholder.md) | App short name is an obvious placeholder (`acmeapp`), not a brand | Accepted |
-| [0017](0017-hexagonal-core-and-boundary-enforcement.md) | Hexagonal core with mechanical boundary enforcement | Accepted |
-| [0018](0018-hook-ci-parity-and-boundary-gate.md) | Hook ↔ CI parity: gate architectural boundaries in CI, mirror slow checks at pre-push | Accepted |
+| [0015](0015-one-logging-pipeline-two-profiles.md) | One logging pipeline, two front-end profiles (CLI vs web policy) | Superseded by 0020 |
+| [0016](0016-app-short-name-placeholder.md) | App short name is an obvious placeholder (`acmeapp`), not a brand | Superseded by 0020 |
+| [0017](0017-hexagonal-core-and-boundary-enforcement.md) | Hexagonal core with mechanical boundary enforcement | Superseded by 0020 |
+| [0018](0018-hook-ci-parity-and-boundary-gate.md) | Hook ↔ CI parity: gate architectural boundaries in CI, mirror slow checks at pre-push | Accepted (amended by 0020) |
 | [0019](0019-testing-strategy-and-tooling.md) | Testing strategy & tooling — parallel/timeout/randomized runs, branch coverage, property + port-contract tests, weekly canary | Accepted |
+| [0020](0020-lost-sessions-replaces-template-cli-and-web.md) | lost-sessions replaces the template's example CLI, web service and container | Accepted |
 
 ## Note on historical decisions
 

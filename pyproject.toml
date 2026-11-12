@@ -21,7 +21,7 @@
 name = "lost_sessions"
 # ITM-070 — static version (ADR-06 cutover). release-please bumps this.
 version = "0.1.0"
-description = "CLI tools for interacting with Py, including project search functionality"
+description = "Recover agent sessions that a reboot dropped, with pluggable session managers"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT" # PEP 639 license expression (ITM-070, round-19).
@@ -40,31 +40,9 @@ classifiers = [
 ]
 dependencies = [
   "click>=8.1.0",
-  "pydantic>=2.0.0",   # structured result models (the JSON representation)
-  "structlog>=24.1.0", # structured logging (human-friendly TTY / JSON otherwise)
-  "tomli-w>=1.0.0",    # writing the TOML config file (`config set`)
-  "requests>=2.31.0",
-  "rich>=13.0.0",
-]
-
-# Single-distribution + extras strategy. The library (core/) and CLI always
-# install; the web service ships behind the `web` extra:
-#   uv sync --extra web   /   pip install lost-sessions[web]
-# Tracing is a further opt-in (`otel` extra) — heavy deps, soft-imported.
-[project.optional-dependencies]
-web = [
-  "fastapi>=0.110.0",
-  "uvicorn[standard]>=0.29.0",
-  "pydantic-settings>=2.4.0",                 # WEB-30 typed env settings
-  "fastapi-pagination>=0.12.26",              # WEB-03 pagination conventions
-  "slowapi>=0.1.9",                           # WEB-22 rate limiting
-  "prometheus-fastapi-instrumentator>=7.0.0", # WEB-11 RED metrics + /metrics
-]
-otel = [
-  # WEB-10 — distributed tracing (soft-imported by web/telemetry.py).
-  "opentelemetry-sdk>=1.27.0",
-  "opentelemetry-exporter-otlp>=1.27.0",
-  "opentelemetry-instrumentation-fastapi>=0.48b0",
+  "pluggy>=1.5.0",     # plugin manager, as in simonw/llm (design Section 4)
+  "pydantic>=2.0.0",   # every data object is a Pydantic model (design Q-G2)
+  "textual>=8,<9",     # the `recover` menu; imported lazily
 ]
 
 # ITM-063 — PEP 735 dependency-groups (round-13 decision). Replaces
@@ -75,9 +53,6 @@ dev = [
   "pytest-cov>=4.1.0",
   "ty>=0.0.1a16",        # per ADR-03 (pre-1.0; bump as needed)
   "ruff>=0.1.0",
-  "httpx>=0.27.0",       # fastapi TestClient transport (tests/web; web extra)
-  "schemathesis>=4.0.0", # WEB-50 contract fuzzing from the OpenAPI schema
-  "types-requests",
   "types-Pygments",
   "cogapp",
   # WL-001 — hook/CI tools pinned via uv.lock (run with `uv run`, not floating
@@ -91,13 +66,11 @@ dev = [
   "twine>=6.1.0",                # WL-004 — dist metadata check in the build-smoke CI job
   "syrupy>=4.8.0",               # WL-023 — CLI --help snapshot tests
   "import-linter>=2.0",          # HEX-30 — architectural layer/boundary rules
-  "tach>=0.35.0",
   # Testing-strategy shortlist (ADR-0019).
   "pytest-xdist>=3.6",     # WL-008 — parallel test execution (`-n auto`)
   "pytest-timeout>=2.3",   # WL-009 — per-test timeout guard (hung test fails loud)
   "pytest-randomly>=3.15", # WL-010 — randomized order surfaces inter-test coupling
   "hypothesis>=6.100",     # WL-013 — property-based tests at parse/serialize seams
-  "responses>=0.25",       # HEX-40 — HTTP mock for the port-contract suite
   "template-press==4.1.0",
 ]
 
@@ -115,8 +88,7 @@ docs = [
 
 
 [project.scripts]
-# Noun-verb CLI (gh-style): lost_sessions <noun> <verb>
-lost_sessions = "lost_sessions.cli.main:cli"
+lost-sessions = "lost_sessions.cli:main"
 
 # ITM-072 — package metadata URLs (round 19).
 [project.urls]
@@ -298,54 +270,22 @@ branch = true
 [tool.codespell]
 skip = ".git,.venv,build,dist,node_modules,uv.lock,bun.lock,*.lock,docs/_build,*.svg,*.cast,.ruff_cache,.pytest_cache,.mypy_cache,.ty_cache,*.log"
 # *.log: raw run output, not prose.
-ignore-words-list = "ans,porjects,unparseable"
+ignore-words-list = "ans,porjects,unparseable,wit"
 # ans: variable name used in prompt-handling code; codespell wants to "fix"
 # it to "and". Whitelist to keep the short variable name.
-# porjects: intentional typo — the did-you-mean example in cli/groups.py and
-# its test ("lost_sessions porjects" must suggest "projects").
+# porjects: the deliberate typo example in the superseded ADR 0007.
+# wit: WebAssembly Interface Types, in docs/research/0001.
 check-filenames = true
 check-hidden = false
 
-# HEX-30 — import-linter: enforce the hexagonal boundaries described in
-# docs/design/0005-hexagonal-architecture-and-enforcement.md. Run via
-# `uv run lint-imports` (locked dev group, WL-001); wired into `just check`
-# and the pre-push hook. Contracts match the CURRENT layer-first layout
-# (core / cli / web); the feature-first reshape (HEX-02) + tach come with the
-# second capability.
+# import-linter: architectural import rules for this package. Run via
+# `uv run lint-imports`; wired into `just check` and CI (import-boundaries).
 [tool.importlinter]
 root_package = "lost_sessions"
-# Required because the framework-bleed contract names external packages
-# (fastapi/click/uvicorn) as forbidden imports.
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "core never imports the front-ends (inward-only, HEX-01)"
+name = "lost-sessions is a CLI: no web framework imports"
 type = "forbidden"
-source_modules = ["lost_sessions.core"]
-forbidden_modules = ["lost_sessions.cli", "lost_sessions.web"]
-
-[[tool.importlinter.contracts]]
-name = "cli and web are independent of each other"
-type = "independence"
-modules = ["lost_sessions.cli", "lost_sessions.web"]
-
-[[tool.importlinter.contracts]]
-name = "composition root is not imported by core (HEX-04)"
-type = "forbidden"
-source_modules = ["lost_sessions.core"]
-forbidden_modules = ["lost_sessions.composition"]
-
-[[tool.importlinter.contracts]]
-name = "core layering: models < services < adapters (HEX-01)"
-type = "layers"
-layers = [
-  "lost_sessions.core.adapters",
-  "lost_sessions.core.services",
-  "lost_sessions.core.models",
-]
-
-[[tool.importlinter.contracts]]
-name = "core does not import web/cli frameworks (framework-bleed, HEX-32)"
-type = "forbidden"
-source_modules = ["lost_sessions.core"]
-forbidden_modules = ["fastapi", "click", "uvicorn"]
+source_modules = ["lost_sessions"]
+forbidden_modules = ["fastapi", "starlette", "uvicorn"]

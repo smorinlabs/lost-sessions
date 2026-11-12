@@ -1,6 +1,6 @@
 # 0009. Guided `config init` plus a marker-backed one-time first-run hint
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive + Copilot/CodeRabbit review), implemented in PR #400
 - **Related:** `cli/commands/config.py`; `cli/context.py`; ADR 0002 (no secrets in config)

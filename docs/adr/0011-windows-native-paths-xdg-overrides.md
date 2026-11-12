@@ -1,6 +1,6 @@
 # 0011. Windows-native default directories; XDG overrides win everywhere
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive + CodeRabbit review), implemented in PR #400
 - **Related:** `core/paths.py`; `tests/core/test_paths.py`; `.github/workflows/ci.yml` (windows matrix)

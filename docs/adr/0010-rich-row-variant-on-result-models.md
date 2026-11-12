@@ -1,6 +1,6 @@
 # 0010. Terminal niceties via a rich-only row variant on result models
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0020](0020-lost-sessions-replaces-template-cli-and-web.md)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive + CodeRabbit review), implemented in PR #400
 - **Related:** `core/models.py`; `core/format.py`; ADR 0003 (output modes)
