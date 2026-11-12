@@ -126,6 +126,46 @@ def test_allow_list_loads_only_the_named_distributions(pm, monkeypatch, capsys):
     assert "Plugin lost-sessions-missing could not be found" in capsys.readouterr().err
 
 
+def test_allow_list_tolerates_repeated_and_clashing_entry_points(pm, monkeypatch):
+    first = types.ModuleType("lost_sessions_first")
+    clash = types.ModuleType("lost_sessions_clash")
+    distributions = {
+        "lost-sessions-first": _fake_distribution("lost-sessions-first", first),
+        # a second distribution exposing the same entry-point name, "first"
+        "other-first": types.SimpleNamespace(
+            entry_points=[
+                types.SimpleNamespace(
+                    group=ENTRY_POINT_GROUP, name="first", load=lambda: clash
+                )
+            ],
+            metadata={"Name": "other-first"},
+            version="9",
+        ),
+    }
+    monkeypatch.setattr(metadata, "distribution", distributions.__getitem__)
+    monkeypatch.setenv(
+        "LOST_SESSIONS_LOAD_PLUGINS",
+        "lost-sessions-first,lost-sessions-first,other-first",
+    )
+    load_plugins(pm)
+    assert pm.is_registered(first)
+    assert not pm.is_registered(clash)
+
+
+def test_discovered_entry_point_plugins_get_distribution_metadata(pm, monkeypatch):
+    plugin = types.ModuleType("lost_sessions_discovered")
+    dist = types.SimpleNamespace(version="4.5.6")
+    monkeypatch.delenv("LOST_SESSIONS_LOAD_PLUGINS", raising=False)
+
+    def fake_discovery(group):
+        pm.register(plugin, name="discovered")
+
+    monkeypatch.setattr(pm, "load_setuptools_entrypoints", fake_discovery)
+    monkeypatch.setattr(pm, "list_plugin_distinfo", lambda: [(plugin, dist)])
+    load_plugins(pm)
+    assert pm.distributions[plugin] is dist
+
+
 # --- TS-2: registration through the hooks ----------------------------------------
 
 

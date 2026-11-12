@@ -383,7 +383,7 @@ Tests to add: TS-11 (below).
 | Distribution metadata for listings | | Our own map instead of the private `pm._plugin_distinfo`. |
 | `install` / `uninstall` | the commands yes | They drive `uv`, never `pip` (avoids `llm` #575). |
 | Test isolation | the idea yes | An explicit test-mode switch instead of `sys._called_from_test`, if T6 prefers. |
-| CLI construction | | A `build_cli()` factory (chosen in T6; Section 7.3): plugin-generated flags, fresh CLIs in tests, and the env var honored per build. |
+| CLI construction | | A `build_cli()` factory (chosen in T6; Section 7.3): plugin-generated flags and fresh CLIs in tests. `LOST_SESSIONS_LOAD_PLUGINS` is read once per plugin manager; tests get a fresh manager from `make_plugin_manager()` (one process loads once, as in `llm`). |
 
 ---
 

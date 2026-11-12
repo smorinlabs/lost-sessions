@@ -6,7 +6,7 @@ import importlib
 import os
 import sys
 from importlib import metadata
-from typing import Protocol
+from typing import Any, Protocol
 
 import pluggy
 
@@ -28,7 +28,9 @@ class PluginManager(pluggy.PluginManager):
 
     def __init__(self) -> None:
         super().__init__(ENTRY_POINT_GROUP)
-        self.distributions: dict[object, metadata.Distribution] = {}
+        # Values are importlib Distributions, or pluggy's DistFacade for
+        # entry points it discovered; both expose .version and .metadata.
+        self.distributions: dict[object, Any] = {}
 
 
 def make_plugin_manager() -> PluginManager:
@@ -46,12 +48,16 @@ def load_plugins(manager: PluginManager = pm) -> None:
     LOST_SESSIONS_LOAD_PLUGINS is read here, not at import: unset loads every
     installed plugin, "" loads none, "a,b" loads only those distributions.
     Built-ins always load, and they load last so pluggy calls them first.
+    A manager loads once; later calls on it return without re-reading the
+    variable. Use a fresh manager (make_plugin_manager) to reload.
     """
     if all(manager.has_plugin(path) for path in DEFAULT_PLUGINS):
         return
     allow = os.environ.get(LOAD_PLUGINS_ENV)
     if allow is None:
         manager.load_setuptools_entrypoints(ENTRY_POINT_GROUP)
+        for plugin, distribution in manager.list_plugin_distinfo():
+            manager.distributions[plugin] = distribution
     else:
         for name in (n.strip() for n in allow.split(",")):
             if name:
@@ -68,10 +74,17 @@ def _load_distribution(manager: PluginManager, name: str) -> None:
         sys.stderr.write(f"Plugin {name} could not be found\n")
         return
     for entry_point in distribution.entry_points:
-        if entry_point.group == ENTRY_POINT_GROUP:
-            plugin = entry_point.load()
-            manager.register(plugin, name=entry_point.name)
-            manager.distributions[plugin] = distribution
+        if entry_point.group != ENTRY_POINT_GROUP:
+            continue
+        # Like load_setuptools_entrypoints: skip a name already taken or
+        # blocked, so a repeated or clashing allow-list entry cannot crash.
+        if manager.has_plugin(entry_point.name) or manager.is_blocked(entry_point.name):
+            continue
+        plugin = entry_point.load()
+        if manager.is_registered(plugin):
+            continue
+        manager.register(plugin, name=entry_point.name)
+        manager.distributions[plugin] = distribution
 
 
 class Named(Protocol):
