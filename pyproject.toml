@@ -89,6 +89,9 @@ docs = [
 
 [project.scripts]
 lost-sessions = "lost_sessions.cli:main"
+# Alias required by Template Press: its app_name must be a Python identifier
+# and a [project.scripts] key. Remove when press accepts hyphenated names.
+lost_sessions = "lost_sessions.cli:main"
 
 # ITM-072 — package metadata URLs (round 19).
 [project.urls]
@@ -289,3 +292,9 @@ name = "lost-sessions is a CLI: no web framework imports"
 type = "forbidden"
 source_modules = ["lost_sessions"]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
+
+[[tool.importlinter.contracts]]
+name = "core reaches built-in plugins only through the plugin manager"
+type = "forbidden"
+source_modules = ["lost_sessions.cli", "lost_sessions.hookspecs", "lost_sessions.plugins"]
+forbidden_modules = ["lost_sessions.default_plugins"]

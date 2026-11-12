@@ -22,6 +22,7 @@ file by hand — see Conventions.
 
 | ID  | St    | Project                                                                 |
 |-----|-------|------------------------------------------------------------------------|
+| P01 | `[~]` | [Port lost-sessions into a pluggable package](projects/P01-lost-sessions-port.md) (target v0.2.0) |
 
 ## Conventions
 

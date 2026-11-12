@@ -21,4 +21,8 @@
 
 from importlib import metadata
 
+from lost_sessions.hookspecs import hookimpl
+
 __version__ = metadata.version("lost_sessions")
+
+__all__ = ["__version__", "hookimpl"]

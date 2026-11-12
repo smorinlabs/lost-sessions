@@ -5,10 +5,16 @@ from __future__ import annotations
 import click
 
 from lost_sessions import __version__
+from lost_sessions.plugins import PluginManager, load_plugins, pm
 
 
-def build_cli() -> click.Group:
-    """Create the click group. A factory, so tests can build a fresh CLI."""
+def build_cli(manager: PluginManager = pm) -> click.Group:
+    """Create the click group and let plugins add commands.
+
+    A factory instead of an import-time group (design 0006, Section 7.3), so
+    flags generated from registered managers and plugins registered after
+    import both reach a freshly built CLI.
+    """
 
     @click.group(
         help=(
@@ -20,8 +26,10 @@ def build_cli() -> click.Group:
     def cli() -> None:
         pass
 
+    manager.hook.register_commands(cli=cli)
     return cli
 
 
 def main() -> None:
-    build_cli()(prog_name="lost-sessions")
+    load_plugins(pm)
+    build_cli(pm)(prog_name="lost-sessions")

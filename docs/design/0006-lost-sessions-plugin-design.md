@@ -45,7 +45,7 @@ The runtime has three layers. The CLI calls core. Core calls plugins only throug
  lost-sessions (click group)  <-- register_commands(cli): plugins may add subcommands
         |
         v
- core: select lost sessions, label, refuse, open, log history
+ core: select dropped sessions, label, refuse, open, log history
         |                                   |
         | register_agent_tools              | register_session_managers
         v                                   v
@@ -280,7 +280,7 @@ def load_plugins():
 | Command | Status | Notes |
 |---|---|---|
 | `recover` | kept | Interactive menu; actions are Print plus one per registered manager. |
-| `list` | kept | Numbered list of lost sessions. |
+| `list` | kept | Numbered list of dropped sessions. |
 | `open REF… (--print \| --<manager>) [--focus [REF]]` | kept | `--herdr` and `--rex` are generated from manager names, so the spelling is unchanged. `REF@DEST` is unchanged. **T6 check:** `--focus` takes an optional value; in click use `is_flag=False, flag_value=…`. |
 | `workspaces` | kept | Lists destinations from every manager. |
 | `history [--json]` | kept | |
