@@ -1,6 +1,6 @@
-# Contributing to Py Launch Blueprint
+# Contributing to Lost Sessions
 
-Thank you for your interest in contributing to Py Launch Blueprint! We welcome contributions from the community and appreciate your efforts in improving the project.
+Thank you for your interest in contributing to Lost Sessions! We welcome contributions from the community and appreciate your efforts in improving the project.
 
 ## How to Contribute
 
@@ -59,7 +59,7 @@ command does not install a workflow or configure GitHub credentials.
 The source blueprint maintains its roster with a workflow triggered by pushes
 to `main` and manual dispatch. Generated applications must deliberately install
 and configure automation if they want the same behavior. See
-[project setup](https://github.com/smorinlabs/py-launch-blueprint/blob/main/docs/PROJECT_SETUP.md)
+[project setup](https://github.com/smorinlabs/lost-sessions/blob/main/docs/PROJECT_SETUP.md)
 for optional service configuration.
 
 ## Code of Conduct

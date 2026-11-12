@@ -7,7 +7,7 @@
 
 ## Context
 
-A mistyped noun or verb (`plbp porjects list`, `plbp projects lst`)
+A mistyped noun or verb (`lost_sessions porjects list`, `lost_sessions projects lst`)
 answered with a bare "No such command", leaving the user to run `--help`
 and scan. git/gh-style "Did you mean …?" is table-stakes CLI polish, but
 the obvious implementation (`click-didyoumean`) adds a dependency for ~20

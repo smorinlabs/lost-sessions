@@ -16,21 +16,21 @@ vanished entirely unless the user happened to pass `--verbose`.
 
 Three-part error contract, all append-only:
 
-1. Every expected error carries a **stable `PLBP###` error code** (a string
+1. Every expected error carries a **stable `LOST_SESSIONS###` error code** (a string
    constant in `core/errors.py`, finer-grained than exit codes — many codes
    may share one exit code) plus an optional **`hint`**: one actionable next
    step rendered under the message and as a `hint` key in the JSON error
    object.
 2. **Unexpected exceptions** — including failures while building the
-   `AppContext` at startup — emit `PLBP000`, exit `IO` (4), and always
-   append the full traceback to `<state>/plbp/plbp_crash.log`, printing
+   `AppContext` at startup — emit `LOST_SESSIONS000`, exit `IO` (4), and always
+   append the full traceback to `<state>/lost_sessions/lost_sessions_crash.log`, printing
    `full traceback: <path>` so nothing is lost without `--verbose`.
 3. The JSON `error` object only ever **gains** keys (`error_code`, `hint`,
    `traceback_path`); existing keys (`code`, `name`, `message`) are frozen.
 
 Codes are literal strings (not derived from `APP_NAME` at runtime) and the
 files carrying them are registered in `init/manifest.toml`, so a fork's
-`just init` rewrites the prefix wholesale — same convention as the `PLBP_*`
+`just init` rewrites the prefix wholesale — same convention as the `LOST_SESSIONS_*`
 env vars.
 
 ## Consequences

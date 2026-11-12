@@ -1,125 +1,46 @@
-# Full Project Setup
+# Application setup
 
-This tutorial will guide you through the end-to-end setup of a new project using the Py Launch Blueprint template. By the end of this tutorial, you will have a fully functional Python project with a pre-configured development environment, ready for production.
+This guide prepares this application's development environment, checks the
+installation, and builds its distribution files. Run the commands from the
+repository root.
 
-## Prerequisites
+## Set up the development environment
 
-Before you begin, ensure you have the following installed on your system:
-
-- Python 3.13 or higher
-- `uv` package manager
-- `just` task runner
-
-## Steps
-
-### 1. Clone the Repository
-
-First, clone the Py Launch Blueprint repository to your local machine:
+Use Python 3.13 or later, `uv`, and `just`. If `uv` or `just` is missing, run
+`make bootstrap` first. See [development setup](../tasks/setting_up_development.md)
+for alternative toolchain provisioning options.
 
 ```bash
-git clone https://github.com/smorinlabs/py-launch-blueprint.git
-cd py-launch-blueprint
+just setup
 ```
 
-### 2. Install Dependencies
+This installs the locked development dependencies, the optional web dependencies,
+and the Git hook toolchain. Run it for each fresh clone or development environment.
 
-Next, install the project dependencies using `uv`:
-
-```bash
-uv pip install --editable ".[dev]"
-```
-
-This command installs the project in editable mode along with the development dependencies.
-
-### 3. Set Up Pre-commit Hooks
-
-Set up pre-commit hooks to ensure code quality and consistency:
-
-```bash
-uvx --with-editable . pre-commit install
-```
-
-### 4. Verify Installation
-
-Verify that the installation was successful by running the following commands:
+## Verify the application
 
 ```bash
 just check
 ```
 
-This command runs all the checks, including linting, type checking, and tests.
+The checks cover tests, linting, types, import boundaries, and repository quality
+rules. A successful run exits with no failed checks.
 
-### 5. Configure the Project
+Use the [CLI reference](../reference/cli_reference.md) to run the application
+from a terminal. Its command name is listed in `pyproject.toml` under
+`[project.scripts]`. The [web documentation](../web/index.md) explains how to
+start and check the optional web interface.
 
-Update the project configuration files to match your project's requirements. This includes updating the `pyproject.toml` file with your project's metadata, dependencies, and settings.
-
-### 6. Initialize Version Control
-
-Initialize a new Git repository for your project and make the initial commit:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
-
-### 7. Set Up CI/CD
-
-Configure the CI/CD pipeline for your project using GitHub Actions. The Py Launch Blueprint template includes a pre-configured GitHub Actions workflow in the `.github/workflows/ci.yaml` file. Customize this workflow to fit your project's needs.
-
-### 8. Start Developing
-
-You are now ready to start developing your project. Use the provided `just` commands to manage your development workflow.
-
-For example, to run the tests:
+## Build distribution files
 
 ```bash
-just test
+uv build
 ```
 
-To format the code:
+The wheel and source distribution are written to `dist/`.
 
-```bash
-just format
-```
+## Configure repository services
 
-To lint the code:
-
-```bash
-just lint
-```
-
-## Project Commands
-
-- **Setup**: `just setup` or `uv pip install --editable ".[dev]"`
-- **Format**: `just format` or `uvx ruff format py_launch_blueprint/`
-- **Lint**: `just lint` or `uvx ruff check py_launch_blueprint/`
-- **Type check**: `just typecheck` or `uv run ty check src/py_launch_blueprint/`
-- **Test all**: `just test` or `uvx --with-editable . pytest`
-- **Test single**: `uvx --with-editable . pytest tests/test_file.py::test_name`
-- **All checks**: `just check`
-- **Pre-commit**: `just pre-commit-run`
-
-## Code Style Guidelines
-
-- **Line length**: 88 characters (Black standard)
-- **Types**: Strict typing required for all functions
-- **Imports**: Sorted with relative imports preferred
-- **Naming**: PEP 8 conventions enforced via Ruff
-- **Errors**: Prefer explicit error handling over assertions
-- **Tests**: Type annotations optional for test files
-- **Security**: No hardcoded credentials, follow bandit rules
-
-## Developer Environment
-
-- **Python**: 3.13+ required
-- **Package manager**: `uv` recommended, pip supported
-- **IDE**: VS Code with Ruff, MyPy, and Pylance extensions
-
-## Additional Resources
-
-For more detailed information on the available commands and tools, refer to the following sections:
-
-- [Type Checking Code](../tasks/type_checking_code.md)
-- [Managing Dependencies](../tasks/managing_dependencies.md)
-- [Using CI/CD](../tasks/using_ci_cd.md)
+Use `docs/PROJECT_SETUP.md` in this repository to configure releases, publishing,
+and optional services. Complete the relevant configuration before enabling a
+service that needs credentials.

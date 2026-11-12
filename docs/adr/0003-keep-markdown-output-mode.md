@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-09
 - **Deciders:** maintainer (interactive), implemented in PR #378
-- **Related:** [design 0001](../design/0001-plbp-cli-conventions.md) §3 (R3.2)
+- **Related:** [design 0001](../design/0001-lost_sessions-cli-conventions.md) §3 (R3.2)
 
 ## Context
 

@@ -9,8 +9,8 @@ from hypothesis import settings
 # default 200ms per-example deadline flakes there. Disable it (our strategies
 # are cheap round-trips, not perf tests) so a slow shared runner never fails a
 # correctness property. Registered + loaded once for the whole suite.
-settings.register_profile("plbp", deadline=None)
-settings.load_profile("plbp")
+settings.register_profile("lost_sessions", deadline=None)
+settings.load_profile("lost_sessions")
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +25,7 @@ def _reset_root_logger():
     yield
     root = logging.getLogger()
     for handler in root.handlers[:]:
-        if getattr(handler, "_plbp_owned", False):
+        if getattr(handler, "_lost_sessions_owned", False):
             root.removeHandler(handler)
             handler.close()
     root.setLevel(logging.WARNING)

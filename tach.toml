@@ -17,21 +17,21 @@ exclude = [
 ]
 
 [[modules]]
-path = "py_launch_blueprint"
+path = "lost_sessions"
 depends_on = []
 
 [[modules]]
-path = "py_launch_blueprint.core"
-depends_on = ["py_launch_blueprint"]
+path = "lost_sessions.core"
+depends_on = ["lost_sessions"]
 
 [[modules]]
-path = "py_launch_blueprint.composition"
-depends_on = ["py_launch_blueprint.core"]
+path = "lost_sessions.composition"
+depends_on = ["lost_sessions.core"]
 
 [[modules]]
-path = "py_launch_blueprint.cli"
-depends_on = ["py_launch_blueprint.composition", "py_launch_blueprint.core", "py_launch_blueprint"]
+path = "lost_sessions.cli"
+depends_on = ["lost_sessions.composition", "lost_sessions.core", "lost_sessions"]
 
 [[modules]]
-path = "py_launch_blueprint.web"
-depends_on = ["py_launch_blueprint.core", "py_launch_blueprint.composition", "py_launch_blueprint"]
+path = "lost_sessions.web"
+depends_on = ["lost_sessions.core", "lost_sessions.composition", "lost_sessions"]

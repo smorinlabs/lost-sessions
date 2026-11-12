@@ -2,10 +2,10 @@
 
 import pytest
 
-from py_launch_blueprint.core.adapters.in_memory import InMemoryProjectsRepository
-from py_launch_blueprint.core.errors import ProjectNotFoundError, WorkspaceNotFoundError
-from py_launch_blueprint.core.models import Project
-from py_launch_blueprint.core.services.projects import ProjectsService
+from lost_sessions.core.adapters.in_memory import InMemoryProjectsRepository
+from lost_sessions.core.errors import ProjectNotFoundError, WorkspaceNotFoundError
+from lost_sessions.core.models import Project
+from lost_sessions.core.services.projects import ProjectsService
 
 
 def _service(projects=None, workspaces=None):
@@ -58,5 +58,5 @@ def test_workspace_resolution_is_case_insensitive():
 
 
 def test_not_found_errors_have_distinct_stable_codes():
-    assert ProjectNotFoundError("x").error_code == "PLBP005"
-    assert WorkspaceNotFoundError("x").error_code == "PLBP006"
+    assert ProjectNotFoundError("x").error_code == "LOST_SESSIONS005"
+    assert WorkspaceNotFoundError("x").error_code == "LOST_SESSIONS006"

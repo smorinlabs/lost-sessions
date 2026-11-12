@@ -10,7 +10,7 @@ git tag -a v0.0.1 -m "Release version 0.0.1"
 git push --tags
 
 # Verify version metadata.
-uv run python -c "import py_launch_blueprint; print(py_launch_blueprint.__version__)"
+uv run python -c "import lost_sessions; print(lost_sessions.__version__)"
 
 # Build package artifacts.
 uv build
@@ -20,7 +20,7 @@ uv build
 
 ```bash
 uv sync --all-extras --dev
-uv run python -c "import py_launch_blueprint; print(py_launch_blueprint.__version__)"
+uv run python -c "import lost_sessions; print(lost_sessions.__version__)"
 uv build
 ```
 
@@ -39,5 +39,5 @@ Configure the `testpypi` and `pypi` GitHub environments as Trusted Publishers in
 ## Troubleshooting
 
 - **Version mismatch in CI**: update `project.version` in `pyproject.toml` before tagging.
-- **Build cannot find the package module**: check `[tool.uv.build-backend]` and keep `module-name = "py_launch_blueprint"` with `module-root = ""`.
+- **Build cannot find the package module**: check `[tool.uv.build-backend]` and keep `module-name = "lost_sessions"` with `module-root = ""`.
 - **Publishing fails with OIDC errors**: confirm the GitHub repository, workflow filename, environment, and package name match the Trusted Publishing settings in PyPI and TestPyPI.

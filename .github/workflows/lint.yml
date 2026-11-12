@@ -112,9 +112,9 @@ jobs:
         # WL-001: locked via uv.lock, matching the pre-push hook exactly.
         run: uv sync --locked --only-group dev
       - name: Run bandit
-        # src/ path (post src-layout move); the old flat `py_launch_blueprint/`
+        # src/ path (post src-layout move); the old flat `lost_sessions/`
         # path no longer exists, so the scan was silently covering nothing.
-        run: uv run --no-sync bandit -r src/py_launch_blueprint/ -c pyproject.toml
+        run: uv run --no-sync bandit -r src/lost_sessions/ -c pyproject.toml
 
   codespell:
     name: codespell

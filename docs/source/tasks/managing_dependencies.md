@@ -21,11 +21,11 @@ uv pip install --editable ".[dev]"
 Use UV to run various development tools:
 
 ```sh
-uvx ruff format py_launch_blueprint/       # Format code
-uvx ruff check py_launch_blueprint/        # Run linter
-uv run ty check src/py_launch_blueprint/  # Type check
+uvx ruff format lost_sessions/       # Format code
+uvx ruff check lost_sessions/        # Run linter
+uv run ty check src/lost_sessions/  # Type check
 uvx --with-editable . pytest               # Run tests
-uvx --with pytest-cov --with-editable . pytest --cov=py_launch_blueprint --cov-report=term-missing  # Test coverage
+uvx --with pytest-cov --with-editable . pytest --cov=lost_sessions --cov-report=term-missing  # Test coverage
 ```
 
 ### Pre-Commit Hooks (Optional)
@@ -76,10 +76,10 @@ pip install --editable ".[dev]"
 You can run development tools directly with pip:
 
 ```sh
-ruff format py_launch_blueprint/
-ruff check py_launch_blueprint/
-ty check src/py_launch_blueprint/
-pytest --cov=py_launch_blueprint --cov-report=term-missing
+ruff format lost_sessions/
+ruff check lost_sessions/
+ty check src/lost_sessions/
+pytest --cov=lost_sessions --cov-report=term-missing
 ```
 
 

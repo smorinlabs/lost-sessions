@@ -1,0 +1,412 @@
+# press/press-receipt.toml — written by template-press AFTER the no-leak
+# verification pass. Presence means: this rebrand completed and was
+# verified. Delete it (or use --force) to press again.
+[press]
+verified = true
+remove_dirs_version = 1
+platform = "darwin"
+completed_at = "2026-11-12T21:26:08+00:00"
+origin_named_destination = ["repo_name"]
+
+[press.from]
+package_name = "py_launch_blueprint"
+repo_name = "py-launch-blueprint"
+app_name = "plbp"
+author = "Steve Morin"
+email = "steve.morin@gmail.com"
+owner = "smorinlabs"
+display_name = "Py Launch Blueprint"
+
+[press.to]
+package_name = "lost_sessions"
+repo_name = "lost-sessions"
+app_name = "lost_sessions"
+author = "Steve Morin"
+email = "steve.morin@gmail.com"
+owner = "smorinlabs"
+display_name = "Lost Sessions"
+
+[press.counts]
+replaced = 164
+renamed = 7
+reset = 11
+removed = 55
+edited = 2
+regenerated = 3
+skipped = 5
+
+[[press.edit]]
+file = "pyproject.toml"
+argv = ["/Users/stevemorin/.local/bin/uv", "version", "0.1.0", "--frozen"]
+expect = "version = \"0.1.0\""
+
+[[press.edit]]
+file = "release-please-config.json"
+argv = ["/Users/stevemorin/.local/bin/uv", "run", "--no-project", "--python", "3.13", "python", "scripts/reset_release_history.py"]
+expect = "\"packages\": {"
+
+[[press.regenerate]]
+file = "uv.lock"
+argv = ["/Users/stevemorin/.local/bin/uv", "lock"]
+
+[[press.regenerate]]
+file = "bun.lock"
+argv = ["/Users/stevemorin/c/lost-sessions/scripts/regen-bun-lock.sh"]
+
+[[press.regenerate]]
+file = "tests/cli/__snapshots__/test_help_snapshots.ambr"
+argv = ["/Users/stevemorin/.local/bin/uv", "run", "pytest", "tests/cli/test_help_snapshots.py", "--snapshot-update", "--override-ini=addopts="]
+
+[[press.reset]]
+file = "CHANGELOG.md"
+
+[[press.reset]]
+file = "README.md"
+
+[[press.reset]]
+file = "docs/POST_INIT.md"
+
+[[press.reset]]
+file = ".claude/skills/new-python-project/README.md"
+
+[[press.reset]]
+file = "PROJECTS.md"
+
+[[press.reset]]
+file = ".release-please-manifest.json"
+
+[[press.reset]]
+file = "docs/source/index.md"
+
+[[press.reset]]
+file = "docs/source/about/philosophy.md"
+
+[[press.reset]]
+file = "docs/source/tutorials/full_project_setup.md"
+
+[[press.reset]]
+file = "docs/skills/new-python-project.md"
+
+[[press.reset]]
+file = ".github/SECURITY.md"
+
+[[press.remove]]
+file = "docs/design/0005-template-press-tui-design.md"
+reason = "template-press engine TUI design is engine history"
+
+[[press.remove]]
+file = ".github/workflows/update-contributors.yml"
+reason = "app-secret-gated maintenance workflow; forks cannot run it"
+
+[[press.remove]]
+file = "tests/meta/test_contributors_workflow.py"
+reason = "pins the removed update-contributors workflow; a removal takes its meta-tests with it (run 5 PROBLEM-29)"
+
+[[press.remove]]
+file = ".github/workflows/template-receipt-guard.yml"
+reason = "template-only receipt guard; a fork legitimately commits its receipt"
+
+[[press.remove]]
+file = ".github/workflows/difftree-pr-comment.yml"
+reason = "uses the template owner's difftree action; the rewritten uses: path would not exist for a fork owner"
+
+[[press.remove]]
+file = ".contributors.yml"
+reason = "the template's contributor automation state"
+
+[[press.remove]]
+file = ".contributors.jsonl"
+reason = "the template's contributor records"
+
+[[press.remove]]
+file = "CONTRIBUTORS.md"
+reason = "the template's contributor roster; a fork starts its own"
+
+[[press.remove]]
+file = ".oss-scanner/threat_model.md"
+reason = "describes the template's attack surface for its own scanner enrollment; an application writes its own"
+
+[[press.remove]]
+file = "tests/meta/test_contributors_state.py"
+reason = "pins the removed contributor state files"
+
+[[press.remove]]
+file = "tests/meta/test_contributors_render.py"
+reason = "pins the removed contributor roster rendering"
+
+[[press.remove]]
+file = ".claude/skills/new-python-project/SKILL.md"
+reason = "template bootstrap skill and its dedicated contract test"
+
+[[press.remove]]
+file = "tests/meta/test_bootstrap_skill.py"
+reason = "template bootstrap skill and its dedicated contract test"
+
+[[press.remove]]
+file = ".github/workflows/bootstrap-acceptance.yml"
+reason = "blueprint acceptance workflow; its tests are removed from applications"
+
+[[press.remove]]
+file = "research/CLAUDE.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/reference/python-typing-ty-2026-07-18.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/DECISION.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/audit-codex.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/audit-fable.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/baseline.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.framing.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.prompt.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/research/0001-skill-trigger-optimization.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/research/0002-dev-tooling-wishlist.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/research/0003-init-post-init-analysis.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/research/0004-template-press-dogfood-log.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/research/README.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/plans/2026-06-12-template-press-bootstrap-dogfood.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/plans/2026-08-16-template-press-v34-dogfood-conform.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/plans/2026-08-17-full-conform.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/reviews/2026-09-10-press-upgrade-acceptance.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/.gitkeep"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-06-12-template-press-bootstrap-dogfood-design.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v2-design.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v3-design.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-08-16-template-press-v34-dogfood-design.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-08-17-full-conform-design.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "docs/superpowers/specs/2026-09-10-press-upgrade-and-python-313.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "prototypes/press_tui/README.md"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "prototypes/press_tui/decisions.py"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "prototypes/press_tui/interview.py"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "prototypes/press_tui/test_decisions.py"
+reason = "template-only development history; generated projects start their own"
+
+[[press.remove]]
+file = "projects/.gitkeep"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P01-init-rebrand-robustness.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P02-repo-simplification.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P03-type-precision-uplevel.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P04-py-api-boundary-validation.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P05-template-press-v34-dogfood-conform.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P06-full-conform.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P07-press-upgrade-and-python-313.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P08-audit-triage-contributor-model.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P09-enroll-anthropic-oss-scanner-.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "projects/P10-otel-extra-ci-coverage.md"
+reason = "template project history; setup restores an empty project directory"
+
+[[press.remove]]
+file = "tests/bootstrap/__init__.py"
+reason = "template acceptance tests generate a new project and must not recurse"
+
+[[press.remove]]
+file = "tests/bootstrap/test_template_press.py"
+reason = "template acceptance tests generate a new project and must not recurse"
+
+[[press.remove_dir]]
+dir = "research"
+current_dir = "research"
+reason = "template-only development history; generated projects start their own"
+complete = true
+members = [{ file = "research/CLAUDE.md", source_dir = "research", current_file = "research/CLAUDE.md" }, { file = "research/reference/python-typing-ty-2026-07-18.md", source_dir = "research", current_file = "research/reference/python-typing-ty-2026-07-18.md" }, { file = "research/topics/01-python-typing-best-practices/DECISION.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/DECISION.md" }, { file = "research/topics/01-python-typing-best-practices/audit-codex.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/audit-codex.md" }, { file = "research/topics/01-python-typing-best-practices/audit-fable.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/audit-fable.md" }, { file = "research/topics/01-python-typing-best-practices/baseline.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/baseline.md" }, { file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.framing.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.framing.md" }, { file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.prompt.md", source_dir = "research", current_file = "research/topics/01-python-typing-best-practices/prompts/01-python-typing.prompt.md" }]
+
+[[press.remove_dir]]
+dir = "docs/research"
+current_dir = "docs/research"
+reason = "template-only development history; generated projects start their own"
+complete = true
+members = [{ file = "docs/research/0001-skill-trigger-optimization.md", source_dir = "docs/research", current_file = "docs/research/0001-skill-trigger-optimization.md" }, { file = "docs/research/0002-dev-tooling-wishlist.md", source_dir = "docs/research", current_file = "docs/research/0002-dev-tooling-wishlist.md" }, { file = "docs/research/0003-init-post-init-analysis.md", source_dir = "docs/research", current_file = "docs/research/0003-init-post-init-analysis.md" }, { file = "docs/research/0004-template-press-dogfood-log.md", source_dir = "docs/research", current_file = "docs/research/0004-template-press-dogfood-log.md" }, { file = "docs/research/README.md", source_dir = "docs/research", current_file = "docs/research/README.md" }]
+
+[[press.remove_dir]]
+dir = "docs/superpowers"
+current_dir = "docs/superpowers"
+reason = "template-only development history; generated projects start their own"
+complete = true
+members = [{ file = "docs/superpowers/plans/2026-06-12-template-press-bootstrap-dogfood.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/plans/2026-06-12-template-press-bootstrap-dogfood.md" }, { file = "docs/superpowers/plans/2026-08-16-template-press-v34-dogfood-conform.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/plans/2026-08-16-template-press-v34-dogfood-conform.md" }, { file = "docs/superpowers/plans/2026-08-17-full-conform.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/plans/2026-08-17-full-conform.md" }, { file = "docs/superpowers/reviews/2026-09-10-press-upgrade-acceptance.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/reviews/2026-09-10-press-upgrade-acceptance.md" }, { file = "docs/superpowers/specs/.gitkeep", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/.gitkeep" }, { file = "docs/superpowers/specs/2026-06-12-template-press-bootstrap-dogfood-design.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-06-12-template-press-bootstrap-dogfood-design.md" }, { file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v2-design.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v2-design.md" }, { file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v3-design.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-06-13-template-press-bootstrap-dogfood-v3-design.md" }, { file = "docs/superpowers/specs/2026-08-16-template-press-v34-dogfood-design.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-08-16-template-press-v34-dogfood-design.md" }, { file = "docs/superpowers/specs/2026-08-17-full-conform-design.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-08-17-full-conform-design.md" }, { file = "docs/superpowers/specs/2026-09-10-press-upgrade-and-python-313.md", source_dir = "docs/superpowers", current_file = "docs/superpowers/specs/2026-09-10-press-upgrade-and-python-313.md" }]
+
+[[press.remove_dir]]
+dir = "prototypes/press_tui"
+current_dir = "prototypes/press_tui"
+reason = "template-only development history; generated projects start their own"
+complete = true
+members = [{ file = "prototypes/press_tui/README.md", source_dir = "prototypes/press_tui", current_file = "prototypes/press_tui/README.md" }, { file = "prototypes/press_tui/decisions.py", source_dir = "prototypes/press_tui", current_file = "prototypes/press_tui/decisions.py" }, { file = "prototypes/press_tui/interview.py", source_dir = "prototypes/press_tui", current_file = "prototypes/press_tui/interview.py" }, { file = "prototypes/press_tui/test_decisions.py", source_dir = "prototypes/press_tui", current_file = "prototypes/press_tui/test_decisions.py" }]
+
+[[press.remove_dir]]
+dir = "projects"
+current_dir = "projects"
+reason = "template project history; setup restores an empty project directory"
+complete = true
+members = [{ file = "projects/.gitkeep", source_dir = "projects", current_file = "projects/.gitkeep" }, { file = "projects/P01-init-rebrand-robustness.md", source_dir = "projects", current_file = "projects/P01-init-rebrand-robustness.md" }, { file = "projects/P02-repo-simplification.md", source_dir = "projects", current_file = "projects/P02-repo-simplification.md" }, { file = "projects/P03-type-precision-uplevel.md", source_dir = "projects", current_file = "projects/P03-type-precision-uplevel.md" }, { file = "projects/P04-py-api-boundary-validation.md", source_dir = "projects", current_file = "projects/P04-py-api-boundary-validation.md" }, { file = "projects/P05-template-press-v34-dogfood-conform.md", source_dir = "projects", current_file = "projects/P05-template-press-v34-dogfood-conform.md" }, { file = "projects/P06-full-conform.md", source_dir = "projects", current_file = "projects/P06-full-conform.md" }, { file = "projects/P07-press-upgrade-and-python-313.md", source_dir = "projects", current_file = "projects/P07-press-upgrade-and-python-313.md" }, { file = "projects/P08-audit-triage-contributor-model.md", source_dir = "projects", current_file = "projects/P08-audit-triage-contributor-model.md" }, { file = "projects/P09-enroll-anthropic-oss-scanner-.md", source_dir = "projects", current_file = "projects/P09-enroll-anthropic-oss-scanner-.md" }, { file = "projects/P10-otel-extra-ci-coverage.md", source_dir = "projects", current_file = "projects/P10-otel-extra-ci-coverage.md" }]
+
+[[press.remove_dir]]
+dir = "tests/bootstrap"
+current_dir = "tests/bootstrap"
+reason = "template acceptance tests generate a new project and must not recurse"
+complete = true
+members = [{ file = "tests/bootstrap/__init__.py", source_dir = "tests/bootstrap", current_file = "tests/bootstrap/__init__.py" }, { file = "tests/bootstrap/test_template_press.py", source_dir = "tests/bootstrap", current_file = "tests/bootstrap/test_template_press.py" }]
+
+[[press.clean]]
+paths = ["src/{package_name}", "tests"]
+
+[[press.exempt]]
+file = "uv.lock"
+reason = "regenerated by declared command; validated by the press's post-command scan (hermetic verify skips it)"
+
+[[press.exempt]]
+file = "bun.lock"
+reason = "regenerated by declared command; validated by the press's post-command scan (hermetic verify skips it)"
+
+[[press.exempt]]
+file = "tests/cli/__snapshots__/test_help_snapshots.ambr"
+reason = "CLI help snapshots re-wrap at the new name's length; regenerated by the declared command and certified by the real press's post-command scan"
+
+[[press.exempt]]
+file = "CHANGELOG.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "README.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "docs/POST_INIT.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = ".claude/skills/new-python-project/README.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "PROJECTS.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = ".release-please-manifest.json"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "docs/source/index.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "docs/source/about/philosophy.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "docs/source/tutorials/full_project_setup.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = "docs/skills/new-python-project.md"
+reason = "reset to the declared stub (scanned at plan time)"
+
+[[press.exempt]]
+file = ".github/SECURITY.md"
+reason = "reset to the declared stub (scanned at plan time)"

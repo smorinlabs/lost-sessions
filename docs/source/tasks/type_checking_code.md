@@ -13,12 +13,12 @@ ty is already part of the project's dev dependency group, so it is installed by 
    ```
 
 2. **Configure ty**:
-   ty works with sensible defaults out of the box; project-level options go in the `[tool.ty]` section of [`pyproject.toml`](https://github.com/smorinlabs/py-launch-blueprint/blob/main/pyproject.toml) if needed.
+   ty works with sensible defaults out of the box; project-level options go in the `[tool.ty]` section of [`pyproject.toml`](https://github.com/smorinlabs/lost-sessions/blob/main/pyproject.toml) if needed.
 
 3. **Run ty**:
    To check your code with ty, run the following command:
    ```bash
-   uv run ty check src/py_launch_blueprint/
+   uv run ty check src/lost_sessions/
    ```
    or
    ```bash
@@ -36,11 +36,11 @@ To set up Pyright for your project, follow these steps:
    ```
 
 2. **Configure Pyright**:
-   check the `[tool.pyright]` section of [`pyproject.toml`](https://github.com/smorinlabs/py-launch-blueprint/blob/main/pyproject.toml)
+   check the `[tool.pyright]` section of [`pyproject.toml`](https://github.com/smorinlabs/lost-sessions/blob/main/pyproject.toml)
 3. **Run Pyright**:
    To check your code with Pyright, run the following command:
    ```bash
-   uvx --with-editable . pyright src/py_launch_blueprint/
+   uvx --with-editable . pyright src/lost_sessions/
    ```
 
 

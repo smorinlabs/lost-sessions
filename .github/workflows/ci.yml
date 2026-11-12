@@ -125,7 +125,7 @@ jobs:
       - name: Sync dev env (ty needs project deps on the python path)
         run: uv sync --locked --group dev --extra web
       - name: ty check
-        run: uv run --no-sync ty check src/py_launch_blueprint/
+        run: uv run --no-sync ty check src/lost_sessions/
 
   # ADR 0018 - architectural boundary gate. import-linter (HEX-30) and tach
   # (HEX-31) previously ran ONLY in the pre-push hook / `just check`, so a
@@ -205,7 +205,7 @@ jobs:
         # combine coverage from all workers automatically.
         run: >-
           uv run --no-sync pytest -m "not live" -n auto
-          --cov=py_launch_blueprint --cov-report=xml
+          --cov=lost_sessions --cov-report=xml
       - name: Run tests
         if: ${{ !(matrix.os == 'ubuntu' && matrix.python-version == '3.13') }}
         run: uv run --no-sync pytest -m "not live" -n auto
@@ -267,9 +267,9 @@ jobs:
       - name: Check dist metadata (twine)
         run: uv run --no-sync twine check dist/*
       - name: Smoke test wheel install
-        run: uvx --from "$(ls dist/*.whl)" plbp --version
+        run: uvx --from "$(ls dist/*.whl)" lost_sessions --version
       - name: Smoke test sdist install
-        run: uvx --from "$(ls dist/*.tar.gz)" plbp --version
+        run: uvx --from "$(ls dist/*.tar.gz)" lost_sessions --version
 
   # WL-021 - docs build with warnings-as-errors. Broken cross-references and
   # autodoc failures block the PR instead of surfacing on ReadTheDocs after

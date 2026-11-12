@@ -2,14 +2,14 @@
 
 import json
 
-from py_launch_blueprint.cli import output as output_mod
-from py_launch_blueprint.cli.output import (
+from lost_sessions.cli import output as output_mod
+from lost_sessions.cli.output import (
     OutputMode,
     Renderer,
     _resolve_pager_command,
 )
-from py_launch_blueprint.core.errors import ExitCode
-from py_launch_blueprint.core.models import Project, ProjectList
+from lost_sessions.core.errors import ExitCode
+from lost_sessions.core.models import Project, ProjectList
 
 
 def _result():
@@ -120,14 +120,14 @@ def test_error_json_includes_error_code_and_hint(capsys):
     Renderer(OutputMode.JSON).error(
         "boom",
         ExitCode.AUTH,
-        error_code="PLBP002",
-        hint="set $PLBP_TOKEN",
-        traceback_path="/state/plbp_crash.log",
+        error_code="LOST_SESSIONS002",
+        hint="set $LOST_SESSIONS_TOKEN",
+        traceback_path="/state/lost_sessions_crash.log",
     )
     payload = json.loads(capsys.readouterr().err)
-    assert payload["error"]["error_code"] == "PLBP002"
-    assert payload["error"]["hint"] == "set $PLBP_TOKEN"
-    assert payload["error"]["traceback_path"] == "/state/plbp_crash.log"
+    assert payload["error"]["error_code"] == "LOST_SESSIONS002"
+    assert payload["error"]["hint"] == "set $LOST_SESSIONS_TOKEN"
+    assert payload["error"]["traceback_path"] == "/state/lost_sessions_crash.log"
 
 
 def test_error_json_omits_absent_optional_keys(capsys):
@@ -142,14 +142,14 @@ def test_error_text_shows_code_hint_and_traceback_path(capsys):
     Renderer(OutputMode.TEXT, no_color=True).error(
         "boom",
         ExitCode.AUTH,
-        error_code="PLBP002",
-        hint="set $PLBP_TOKEN",
-        traceback_path="/state/plbp_crash.log",
+        error_code="LOST_SESSIONS002",
+        hint="set $LOST_SESSIONS_TOKEN",
+        traceback_path="/state/lost_sessions_crash.log",
     )
     err = capsys.readouterr().err
-    assert "PLBP002" in err
-    assert "hint: set $PLBP_TOKEN" in err
-    assert "full traceback: /state/plbp_crash.log" in err
+    assert "LOST_SESSIONS002" in err
+    assert "hint: set $LOST_SESSIONS_TOKEN" in err
+    assert "full traceback: /state/lost_sessions_crash.log" in err
 
 
 # -- pager (REC-04) ---------------------------------------------------------
@@ -162,14 +162,14 @@ def _tall_result(rows: int = 40):
 
 
 def test_pager_env_precedence(monkeypatch):
-    monkeypatch.delenv("PLBP_PAGER", raising=False)
+    monkeypatch.delenv("LOST_SESSIONS_PAGER", raising=False)
     monkeypatch.delenv("PAGER", raising=False)
     assert _resolve_pager_command() == "less -FRX"
     monkeypatch.setenv("PAGER", "more")
     assert _resolve_pager_command() == "more"
-    monkeypatch.setenv("PLBP_PAGER", "bat")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "bat")
     assert _resolve_pager_command() == "bat"
-    monkeypatch.setenv("PLBP_PAGER", "")  # set-but-empty disables (git-style)
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "")  # set-but-empty disables (git-style)
     assert _resolve_pager_command() == ""
 
 
@@ -189,7 +189,7 @@ def test_pager_invoked_for_tall_terminal_output(monkeypatch):
         calls["args"] = args
         calls["input"] = kwargs.get("input", "")
 
-    monkeypatch.setenv("PLBP_PAGER", "fakepager --flag")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "fakepager --flag")
     monkeypatch.setattr(output_mod.subprocess, "run", fake_run)
     monkeypatch.setattr(output_mod, "_isatty", lambda console: True)
     Renderer(OutputMode.TEXT, color="always").render(_tall_result())
@@ -201,7 +201,7 @@ def test_pager_skipped_for_short_output(capsys, monkeypatch):
     def explode(*args, **kwargs):  # pragma: no cover - must not be reached
         raise AssertionError("short output must not be paged")
 
-    monkeypatch.setenv("PLBP_PAGER", "fakepager")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "fakepager")
     monkeypatch.setattr(output_mod.subprocess, "run", explode)
     monkeypatch.setattr(output_mod, "_isatty", lambda console: True)
     Renderer(OutputMode.TEXT, color="always").render(_result())
@@ -212,7 +212,7 @@ def test_pager_missing_binary_falls_back_to_plain_output(capsys, monkeypatch):
     def missing(*args, **kwargs):
         raise FileNotFoundError("no such pager")
 
-    monkeypatch.setenv("PLBP_PAGER", "definitely-not-a-pager")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "definitely-not-a-pager")
     monkeypatch.setattr(output_mod.subprocess, "run", missing)
     monkeypatch.setattr(output_mod, "_isatty", lambda console: True)
     Renderer(OutputMode.TEXT, color="always").render(_tall_result())
@@ -225,7 +225,7 @@ def test_pager_not_used_when_color_forced_but_piped(capsys, monkeypatch):
     def explode(*args, **kwargs):  # pragma: no cover - must not be reached
         raise AssertionError("pager must not run when stdout is not a tty")
 
-    monkeypatch.setenv("PLBP_PAGER", "fakepager")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "fakepager")
     monkeypatch.setattr(output_mod.subprocess, "run", explode)
     Renderer(OutputMode.TEXT, color="always").render(_tall_result())
     assert "P39" in capsys.readouterr().out
@@ -235,7 +235,7 @@ def test_pager_disabled_by_paging_false(capsys, monkeypatch):
     def explode(*args, **kwargs):  # pragma: no cover - must not be reached
         raise AssertionError("paging=False must never page")
 
-    monkeypatch.setenv("PLBP_PAGER", "fakepager")
+    monkeypatch.setenv("LOST_SESSIONS_PAGER", "fakepager")
     monkeypatch.setattr(output_mod.subprocess, "run", explode)
     monkeypatch.setattr(output_mod, "_isatty", lambda console: True)
     Renderer(OutputMode.TEXT, color="always", paging=False).render(_tall_result())

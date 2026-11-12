@@ -16,7 +16,7 @@ invisibly.
 
 Two pieces:
 
-1. **`plbp config init`** walks the most common keys (`output.format`,
+1. **`lost_sessions config init`** walks the most common keys (`output.format`,
    `output.color`, `logging.level`) with prompts **on stderr**, offering
    currently resolved values as defaults (allowed values come from the
    settings schema via `allowed_values()`). `--yes` writes the defaults

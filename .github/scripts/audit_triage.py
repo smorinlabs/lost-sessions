@@ -100,7 +100,7 @@ class GitHub:
             headers={
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "py-launch-blueprint-audit-triage",
+                "User-Agent": "lost-sessions-audit-triage",
             },
         )
         if self._token:
@@ -155,7 +155,7 @@ def download_logs(api_url: str, token: str, size_cap: int = MAX_LOG_BYTES) -> st
     redirected blob fetch is always unauthenticated.
     """
     request = urllib.request.Request(  # noqa: S310 -- caller passes constant https API URLs only
-        api_url, headers={"User-Agent": "py-launch-blueprint-audit-triage"}
+        api_url, headers={"User-Agent": "lost-sessions-audit-triage"}
     )
     if token:
         request.add_header("Authorization", f"Bearer {token}")
@@ -169,7 +169,7 @@ def download_logs(api_url: str, token: str, size_cap: int = MAX_LOG_BYTES) -> st
             raise RefusalError("Log download redirected off https") from redirect
         plain = urllib.request.Request(  # noqa: S310 -- https prefix enforced above
             redirect.location,
-            headers={"User-Agent": "py-launch-blueprint-audit-triage"},
+            headers={"User-Agent": "lost-sessions-audit-triage"},
         )
         try:
             with urllib.request.build_opener().open(
@@ -304,7 +304,7 @@ def check_url(url: str) -> tuple[str, str]:
     request = urllib.request.Request(  # noqa: S310 -- target validated public above
         url,
         method="HEAD",
-        headers={"User-Agent": "py-launch-blueprint-audit-triage/1.0"},
+        headers={"User-Agent": "lost-sessions-audit-triage/1.0"},
     )
     opener = urllib.request.build_opener(_VerifyRedirect(MAX_VERIFY_REDIRECTS))
     try:

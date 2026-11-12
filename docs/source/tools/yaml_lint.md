@@ -89,6 +89,6 @@ pre-commit:
 ## 📚 References
 
 * [📘 yamlfmt GitHub Repository](https://github.com/google/yamlfmt)
-* [🔧 Our yamlfmt Configuration](https://github.com/smorinlabs/py-launch-blueprint/blob/main/.yamlfmt)
+* [🔧 Our yamlfmt Configuration](https://github.com/smorinlabs/lost-sessions/blob/main/.yamlfmt)
 * [🔧 yamllint Documentation](https://yamllint.readthedocs.io/)
 * [🚀 Pre-commit Integration](https://pre-commit.com/)

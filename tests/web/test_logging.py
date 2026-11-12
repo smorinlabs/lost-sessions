@@ -12,8 +12,8 @@ import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
 
-from py_launch_blueprint.web.app import create_app
-from py_launch_blueprint.web.settings import WebSettings
+from lost_sessions.web.app import create_app
+from lost_sessions.web.settings import WebSettings
 
 
 def make_client(**settings_overrides):
@@ -36,7 +36,7 @@ def stderr_events(capsys, event: str) -> list[dict]:
 
 @pytest.fixture(autouse=True)
 def _no_ambient_token(monkeypatch):
-    monkeypatch.delenv("PLBP_TOKEN", raising=False)
+    monkeypatch.delenv("LOST_SESSIONS_TOKEN", raising=False)
 
 
 # NOTE: clients are built INSIDE each test (not in a fixture) so the stderr
@@ -56,7 +56,7 @@ def test_access_event_shape(capsys):
     assert event["status"] == response.status_code
     assert isinstance(event["duration_ms"], float)
     assert event["level"] == "info"
-    assert event["logger"] == "py_launch_blueprint.web.middleware"
+    assert event["logger"] == "lost_sessions.web.middleware"
 
 
 def test_unmatched_route_logs_none(capsys):
@@ -174,8 +174,8 @@ def test_uvicorn_loggers_adopted():
 
 
 def test_log_settings_resolve_from_env(monkeypatch):
-    monkeypatch.setenv("PLBP_WEB_LOG_LEVEL", "debug")
-    monkeypatch.setenv("PLBP_WEB_LOG_FORMAT", "console")
+    monkeypatch.setenv("LOST_SESSIONS_WEB_LOG_LEVEL", "debug")
+    monkeypatch.setenv("LOST_SESSIONS_WEB_LOG_FORMAT", "console")
     settings = WebSettings()
     assert settings.log_level == "debug"
     assert settings.log_format == "console"

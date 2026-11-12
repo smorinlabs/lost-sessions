@@ -10,8 +10,8 @@ import importlib
 import pytest
 from fastapi import FastAPI
 
-from py_launch_blueprint.core.paths import APP_NAME
-from py_launch_blueprint.web import telemetry
+from lost_sessions.core.paths import APP_NAME
+from lost_sessions.web import telemetry
 
 
 def test_instrument_tracing_degrades_without_otel(monkeypatch):

@@ -14,7 +14,7 @@ eventually leak via serialization, logging, or copy-paste.
 
 ## Decision
 
-`plbp doctor --bundle` renders a `DiagnosticsBundle` in which secrets are
+`lost_sessions doctor --bundle` renders a `DiagnosticsBundle` in which secrets are
 **redacted at collection time** — they never enter the model at all. The
 token appears only as presence + source; app-prefixed env vars whose names
 contain a secret-shaped marker (`TOKEN`, `SECRET`, `KEY`, `PASSWORD`,

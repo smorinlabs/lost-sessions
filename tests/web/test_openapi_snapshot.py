@@ -8,9 +8,9 @@ oasdiff against the base branch to call out breaking changes.
 import json
 from pathlib import Path
 
-from py_launch_blueprint import __version__
-from py_launch_blueprint.web.app import create_app
-from py_launch_blueprint.web.settings import WebSettings
+from lost_sessions import __version__
+from lost_sessions.web.app import create_app
+from lost_sessions.web.settings import WebSettings
 from scripts.export_openapi import SNAPSHOT_VERSION
 
 SNAPSHOT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.json"

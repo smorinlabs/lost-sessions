@@ -1,6 +1,6 @@
 # Tutorials Overview
 
-Welcome to the Tutorials section of the Py Launch Blueprint documentation. This section provides guided learning paths to help you get the most out of the project.
+Welcome to the Tutorials section of the Lost Sessions documentation. This section provides guided learning paths to help you get the most out of the project.
 
 <!-- ## Table of Contents -->
 

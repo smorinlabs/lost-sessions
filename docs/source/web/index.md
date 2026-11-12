@@ -3,17 +3,17 @@
 The blueprint ships an optional REST service: a *thin adapter* over the same
 `core` library the CLI uses, with production best practices already wired.
 Each convention carries a **WEB-xx** id — the full catalog and rationale live
-in [design 0002](https://github.com/smorinlabs/py-launch-blueprint/blob/main/docs/design/0002-web-api-conventions.md)
-and [ADR 0013](https://github.com/smorinlabs/py-launch-blueprint/blob/main/docs/adr/0013-web-service-best-practices.md).
+in [design 0002](https://github.com/smorinlabs/lost-sessions/blob/main/docs/design/0002-web-api-conventions.md)
+and [ADR 0013](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/0013-web-service-best-practices.md).
 For the root-level walkthrough (the web counterpart of EXAMPLECLI.md) see
-[EXAMPLEWEB.md](https://github.com/smorinlabs/py-launch-blueprint/blob/main/EXAMPLEWEB.md).
+[EXAMPLEWEB.md](https://github.com/smorinlabs/lost-sessions/blob/main/EXAMPLEWEB.md).
 
 ## Quick start
 
 ```bash
 uv sync --group dev --extra web   # install (the web extra)
 just serve                        # dev server with auto-reload
-python -m py_launch_blueprint.web # production-shaped runner
+python -m lost_sessions.web # production-shaped runner
 just test-web                     # web test suite incl. contract fuzzing
 ```
 
@@ -24,7 +24,7 @@ Interactive docs are at `http://127.0.0.1:8000/docs` once running.
 | Path | Purpose |
 |---|---|
 | `/healthz` | Liveness + version (unversioned ops endpoint) |
-| `/readyz` | Readiness — same checks as `plbp doctor`; 503 problem doc on failure |
+| `/readyz` | Readiness — same checks as `lost_sessions doctor`; 503 problem doc on failure |
 | `/metrics` | Prometheus RED metrics (WEB-11; on by default) |
 | `/v1/projects` | Paginated project collection (WEB-02/03) |
 | `/v1/projects/{id}` | Single project |
@@ -34,18 +34,18 @@ an in-place mutation.
 
 ## Configuration (WEB-30)
 
-Everything is an env var with the `PLBP_WEB_` prefix (derived from the app
+Everything is an env var with the `LOST_SESSIONS_WEB_` prefix (derived from the app
 name, so forks rename cleanly). Invalid values fail at boot.
 
 | Env var | Default | Effect |
 |---|---|---|
-| `PLBP_WEB_HOST` / `PLBP_WEB_PORT` | `127.0.0.1` / `8000` | Bind address for the runner |
-| `PLBP_WEB_CORS_ORIGINS` | `[]` | JSON list; empty = CORS middleware not installed |
-| `PLBP_WEB_RATE_LIMIT` | unset | e.g. `100/minute`; unset = rate limiting off (WEB-22) |
-| `PLBP_WEB_METRICS_ENABLED` | `true` | `/metrics` endpoint (WEB-11) |
-| `PLBP_WEB_OTEL_ENABLED` | `false` | OTel tracing — needs the `otel` extra (WEB-10) |
-| `PLBP_WEB_IDEMPOTENCY_TTL_SECONDS` | `86400` | Idempotency replay-cache TTL (WEB-05) |
-| `PLBP_WEB_GRACEFUL_SHUTDOWN_SECONDS` | `10` | Drain window on shutdown (WEB-31) |
+| `LOST_SESSIONS_WEB_HOST` / `LOST_SESSIONS_WEB_PORT` | `127.0.0.1` / `8000` | Bind address for the runner |
+| `LOST_SESSIONS_WEB_CORS_ORIGINS` | `[]` | JSON list; empty = CORS middleware not installed |
+| `LOST_SESSIONS_WEB_RATE_LIMIT` | unset | e.g. `100/minute`; unset = rate limiting off (WEB-22) |
+| `LOST_SESSIONS_WEB_METRICS_ENABLED` | `true` | `/metrics` endpoint (WEB-11) |
+| `LOST_SESSIONS_WEB_OTEL_ENABLED` | `false` | OTel tracing — needs the `otel` extra (WEB-10) |
+| `LOST_SESSIONS_WEB_IDEMPOTENCY_TTL_SECONDS` | `86400` | Idempotency replay-cache TTL (WEB-05) |
+| `LOST_SESSIONS_WEB_GRACEFUL_SHUTDOWN_SECONDS` | `10` | Drain window on shutdown (WEB-31) |
 
 ## The error contract (WEB-01)
 
@@ -58,7 +58,7 @@ failed readiness — is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.htm
   "type": "about:blank",
   "title": "Unauthorized",
   "status": 401,
-  "detail": "no API token configured (set $PLBP_TOKEN)",
+  "detail": "no API token configured (set $LOST_SESSIONS_TOKEN)",
   "instance": "/v1/projects"
 }
 ```

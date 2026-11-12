@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1020,6 +1020,132 @@ wheels = [
 ]
 
 [[package]]
+name = "lost-sessions"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "structlog" },
+    { name = "tomli-w" },
+]
+
+[package.optional-dependencies]
+otel = [
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-sdk" },
+]
+web = [
+    { name = "fastapi" },
+    { name = "fastapi-pagination" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "slowapi" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "codespell" },
+    { name = "cogapp" },
+    { name = "editorconfig-checker" },
+    { name = "httpx" },
+    { name = "hypothesis" },
+    { name = "import-linter" },
+    { name = "pip-audit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-randomly" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "responses" },
+    { name = "ruff" },
+    { name = "schemathesis" },
+    { name = "syrupy" },
+    { name = "tach" },
+    { name = "template-press" },
+    { name = "twine" },
+    { name = "ty" },
+    { name = "types-pygments" },
+    { name = "types-requests" },
+    { name = "yamllint" },
+]
+docs = [
+    { name = "cogapp" },
+    { name = "furo" },
+    { name = "myst-parser" },
+    { name = "sphinx" },
+    { name = "sphinx-autobuild" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-copybutton" },
+    { name = "sphinx-rtd-theme" },
+    { name = "sphinxext-opengraph" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1.0" },
+    { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.110.0" },
+    { name = "fastapi-pagination", marker = "extra == 'web'", specifier = ">=0.12.26" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.27.0" },
+    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'otel'", specifier = ">=0.48b0" },
+    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.27.0" },
+    { name = "prometheus-fastapi-instrumentator", marker = "extra == 'web'", specifier = ">=7.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pydantic-settings", marker = "extra == 'web'", specifier = ">=2.4.0" },
+    { name = "requests", specifier = ">=2.31.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "slowapi", marker = "extra == 'web'", specifier = ">=0.1.9" },
+    { name = "structlog", specifier = ">=24.1.0" },
+    { name = "tomli-w", specifier = ">=1.0.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.29.0" },
+]
+provides-extras = ["web", "otel"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bandit", specifier = ">=1.8.0" },
+    { name = "codespell", specifier = ">=2.4.0" },
+    { name = "cogapp" },
+    { name = "editorconfig-checker", specifier = ">=3.0.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "hypothesis", specifier = ">=6.100" },
+    { name = "import-linter", specifier = ">=2.0" },
+    { name = "pip-audit", specifier = ">=2.9.0" },
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-randomly", specifier = ">=3.15" },
+    { name = "pytest-timeout", specifier = ">=2.3" },
+    { name = "pytest-xdist", specifier = ">=3.6" },
+    { name = "responses", specifier = ">=0.25" },
+    { name = "ruff", specifier = ">=0.1.0" },
+    { name = "schemathesis", specifier = ">=4.0.0" },
+    { name = "syrupy", specifier = ">=4.8.0" },
+    { name = "tach", specifier = ">=0.35.0" },
+    { name = "template-press", specifier = "==4.1.0" },
+    { name = "twine", specifier = ">=6.1.0" },
+    { name = "ty", specifier = ">=0.0.1a16" },
+    { name = "types-pygments" },
+    { name = "types-requests" },
+    { name = "yamllint", specifier = ">=1.35.0" },
+]
+docs = [
+    { name = "cogapp" },
+    { name = "furo" },
+    { name = "myst-parser" },
+    { name = "sphinx", specifier = ">=7.0.0" },
+    { name = "sphinx-autobuild" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-copybutton" },
+    { name = "sphinx-rtd-theme" },
+    { name = "sphinxext-opengraph" },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1560,132 +1686,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/ca/25afc144934014700c52e05103c2421997482d561f3101ff352e1292fb81/protobuf-6.33.6-cp39-abi3-manylinux2014_s390x.whl", hash = "sha256:c96c37eec15086b79762ed265d59ab204dabc53056e3443e702d2681f4b39ce3", size = 339381, upload-time = "2026-03-18T19:04:54.616Z" },
     { url = "https://files.pythonhosted.org/packages/16/92/d1e32e3e0d894fe00b15ce28ad4944ab692713f2e7f0a99787405e43533a/protobuf-6.33.6-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:e9db7e292e0ab79dd108d7f1a94fe31601ce1ee3f7b79e0692043423020b0593", size = 323436, upload-time = "2026-03-18T19:04:55.768Z" },
     { url = "https://files.pythonhosted.org/packages/c4/72/02445137af02769918a93807b2b7890047c32bfb9f90371cbc12688819eb/protobuf-6.33.6-py3-none-any.whl", hash = "sha256:77179e006c476e69bf8e8ce866640091ec42e1beb80b213c3900006ecfba6901", size = 170656, upload-time = "2026-03-18T19:04:59.826Z" },
-]
-
-[[package]]
-name = "py-launch-blueprint"
-version = "4.0.1"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "tomli-w" },
-]
-
-[package.optional-dependencies]
-otel = [
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-sdk" },
-]
-web = [
-    { name = "fastapi" },
-    { name = "fastapi-pagination" },
-    { name = "prometheus-fastapi-instrumentator" },
-    { name = "pydantic-settings" },
-    { name = "slowapi" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "bandit" },
-    { name = "codespell" },
-    { name = "cogapp" },
-    { name = "editorconfig-checker" },
-    { name = "httpx" },
-    { name = "hypothesis" },
-    { name = "import-linter" },
-    { name = "pip-audit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-randomly" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "responses" },
-    { name = "ruff" },
-    { name = "schemathesis" },
-    { name = "syrupy" },
-    { name = "tach" },
-    { name = "template-press" },
-    { name = "twine" },
-    { name = "ty" },
-    { name = "types-pygments" },
-    { name = "types-requests" },
-    { name = "yamllint" },
-]
-docs = [
-    { name = "cogapp" },
-    { name = "furo" },
-    { name = "myst-parser" },
-    { name = "sphinx" },
-    { name = "sphinx-autobuild" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-copybutton" },
-    { name = "sphinx-rtd-theme" },
-    { name = "sphinxext-opengraph" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.1.0" },
-    { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.110.0" },
-    { name = "fastapi-pagination", marker = "extra == 'web'", specifier = ">=0.12.26" },
-    { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.27.0" },
-    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'otel'", specifier = ">=0.48b0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.27.0" },
-    { name = "prometheus-fastapi-instrumentator", marker = "extra == 'web'", specifier = ">=7.0.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydantic-settings", marker = "extra == 'web'", specifier = ">=2.4.0" },
-    { name = "requests", specifier = ">=2.31.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "slowapi", marker = "extra == 'web'", specifier = ">=0.1.9" },
-    { name = "structlog", specifier = ">=24.1.0" },
-    { name = "tomli-w", specifier = ">=1.0.0" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.29.0" },
-]
-provides-extras = ["web", "otel"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bandit", specifier = ">=1.8.0" },
-    { name = "codespell", specifier = ">=2.4.0" },
-    { name = "cogapp" },
-    { name = "editorconfig-checker", specifier = ">=3.0.0" },
-    { name = "httpx", specifier = ">=0.27.0" },
-    { name = "hypothesis", specifier = ">=6.100" },
-    { name = "import-linter", specifier = ">=2.0" },
-    { name = "pip-audit", specifier = ">=2.9.0" },
-    { name = "pytest", specifier = ">=7.0.0" },
-    { name = "pytest-cov", specifier = ">=4.1.0" },
-    { name = "pytest-randomly", specifier = ">=3.15" },
-    { name = "pytest-timeout", specifier = ">=2.3" },
-    { name = "pytest-xdist", specifier = ">=3.6" },
-    { name = "responses", specifier = ">=0.25" },
-    { name = "ruff", specifier = ">=0.1.0" },
-    { name = "schemathesis", specifier = ">=4.0.0" },
-    { name = "syrupy", specifier = ">=4.8.0" },
-    { name = "tach", specifier = ">=0.35.0" },
-    { name = "template-press", specifier = "==4.1.0" },
-    { name = "twine", specifier = ">=6.1.0" },
-    { name = "ty", specifier = ">=0.0.1a16" },
-    { name = "types-pygments" },
-    { name = "types-requests" },
-    { name = "yamllint", specifier = ">=1.35.0" },
-]
-docs = [
-    { name = "cogapp" },
-    { name = "furo" },
-    { name = "myst-parser" },
-    { name = "sphinx", specifier = ">=7.0.0" },
-    { name = "sphinx-autobuild" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-copybutton" },
-    { name = "sphinx-rtd-theme" },
-    { name = "sphinxext-opengraph" },
 ]
 
 [[package]]

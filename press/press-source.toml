@@ -1,8 +1,11 @@
+# press/press-source.toml — this repo's CURRENT identity (the FROM side
+# of a rebrand). Authoritative: press validates it against the repo
+# and refuses to run on mismatch. Commit this file.
 [identity]
-package_name = "py_launch_blueprint"
-repo_name    = "py-launch-blueprint"
-app_name     = "plbp"
-author       = "Steve Morin"
-email        = "steve.morin@gmail.com"
-owner        = "smorinlabs"
-display_name = "Py Launch Blueprint"
+package_name = "lost_sessions"
+repo_name = "lost-sessions"
+app_name = "lost_sessions"
+author = "Steve Morin"
+email = "steve.morin@gmail.com"
+owner = "smorinlabs"
+display_name = "Lost Sessions"

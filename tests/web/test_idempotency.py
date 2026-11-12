@@ -5,7 +5,7 @@ import itertools
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from py_launch_blueprint.web.idempotency import IdempotencyMiddleware
+from lost_sessions.web.idempotency import IdempotencyMiddleware
 
 counter = itertools.count()
 

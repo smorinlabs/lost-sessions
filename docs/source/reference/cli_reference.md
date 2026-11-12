@@ -1,6 +1,6 @@
 # Command-Line Interface (CLI) Commands
 
-This section provides an overview of the available commands in the Py Launch Blueprint CLI. These commands enable you to perform various tasks directly from the command line, such as running the project, managing dependencies, and ensuring code quality.
+This section provides an overview of the available commands in the Lost Sessions CLI. These commands enable you to perform various tasks directly from the command line, such as running the project, managing dependencies, and ensuring code quality.
 
 ## Overview
 
@@ -19,7 +19,7 @@ just run [cmd] [args]
 ```
 
 #### Arguments
-- `cmd`: The command to run (default: `plbp`).
+- `cmd`: The command to run (default: `lost_sessions`).
 - `args`: Arguments to pass to the command.
 
 ---

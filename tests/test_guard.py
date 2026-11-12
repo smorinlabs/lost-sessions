@@ -95,9 +95,9 @@ class TestSkipConditions:
     @pytest.mark.parametrize(
         "origin",
         [
-            "https://github.com/smorinlabs/py-launch-blueprint.git",
-            "git@github.com:smorinlabs/py-launch-blueprint.git",
-            "https://github.com/smorin/py-launch-blueprint",
+            "https://github.com/smorinlabs/lost-sessions.git",
+            "git@github.com:smorinlabs/lost-sessions.git",
+            "https://github.com/smorin/lost-sessions",
         ],
     )
     def test_canonical_origin_silences(self, tmp_path: Path, origin: str):

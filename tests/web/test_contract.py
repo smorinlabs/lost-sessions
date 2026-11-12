@@ -15,8 +15,8 @@ import schemathesis
 from hypothesis import settings as hypothesis_settings
 from schemathesis.checks import not_a_server_error
 
-from py_launch_blueprint.web.app import create_app
-from py_launch_blueprint.web.settings import WebSettings
+from lost_sessions.web.app import create_app
+from lost_sessions.web.settings import WebSettings
 
 schema = schemathesis.openapi.from_asgi(
     "/openapi.json", create_app(WebSettings.model_construct())

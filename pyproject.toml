@@ -18,9 +18,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 [project]
-name = "py_launch_blueprint"
+name = "lost_sessions"
 # ITM-070 — static version (ADR-06 cutover). release-please bumps this.
-version = "4.0.1"
+version = "0.1.0"
 description = "CLI tools for interacting with Py, including project search functionality"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -49,7 +49,7 @@ dependencies = [
 
 # Single-distribution + extras strategy. The library (core/) and CLI always
 # install; the web service ships behind the `web` extra:
-#   uv sync --extra web   /   pip install py-launch-blueprint[web]
+#   uv sync --extra web   /   pip install lost-sessions[web]
 # Tracing is a further opt-in (`otel` extra) — heavy deps, soft-imported.
 [project.optional-dependencies]
 web = [
@@ -115,16 +115,16 @@ docs = [
 
 
 [project.scripts]
-# Noun-verb CLI (gh-style): plbp <noun> <verb>
-plbp = "py_launch_blueprint.cli.main:cli"
+# Noun-verb CLI (gh-style): lost_sessions <noun> <verb>
+lost_sessions = "lost_sessions.cli.main:cli"
 
 # ITM-072 — package metadata URLs (round 19).
 [project.urls]
-Homepage = "https://github.com/smorinlabs/py-launch-blueprint"
-Repository = "https://github.com/smorinlabs/py-launch-blueprint"
-Documentation = "https://py-launch-blueprint.readthedocs.io/en/latest/"
-Changelog = "https://github.com/smorinlabs/py-launch-blueprint/blob/main/CHANGELOG.md"
-Issues = "https://github.com/smorinlabs/py-launch-blueprint/issues"
+Homepage = "https://github.com/smorinlabs/lost-sessions"
+Repository = "https://github.com/smorinlabs/lost-sessions"
+Documentation = "https://lost-sessions.readthedocs.io/en/latest/"
+Changelog = "https://github.com/smorinlabs/lost-sessions/blob/main/CHANGELOG.md"
+Issues = "https://github.com/smorinlabs/lost-sessions/issues"
 
 # ITM-073 — uv_build (ADR-06 cutover; replaces Hatchling + hatch-vcs).
 [build-system]
@@ -133,10 +133,10 @@ build-backend = "uv_build"
 
 # ITM-074 — uv_build module configuration.
 # Template uses a flat layout (package at repo root, not src/) — must set
-# module-root = "" so uv_build doesn't expect src/py_launch_blueprint/.
+# module-root = "" so uv_build doesn't expect src/lost_sessions/.
 [tool.uv.build-backend]
-module-name = "py_launch_blueprint"
-# src/ layout (Decision 1) — package now lives at src/py_launch_blueprint/.
+module-name = "lost_sessions"
+# src/ layout (Decision 1) — package now lives at src/lost_sessions/.
 module-root = "src"
 
 [tool.ruff]
@@ -183,7 +183,7 @@ exclude = [
   "build",
   "dist",
   "docs/source/conf.py",
-  "src/py_launch_blueprint/_version.py",
+  "src/lost_sessions/_version.py",
   "prototypes",                          # P0004 template-press engine prototypes (own lint config in template-press)
 ]
 # Per-file-ignores
@@ -211,7 +211,7 @@ line-ending = "auto"
 # CI typechecking runs ty (ADR-03); this section drives the VS Code Pyright
 # extension and ad-hoc `pyright` runs.
 [tool.pyright]
-include = ["src/py_launch_blueprint", "tests"]
+include = ["src/lost_sessions", "tests"]
 exclude = ["**/node_modules", "**/__pycache__"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
@@ -240,7 +240,7 @@ reportUnusedClass = true
 # strict-mode-based: its correctness core already defaults to `error`, so this
 # block only promotes the handful of quality rules that ship below `error`.
 # Each was verified against the pinned ty (see uv.lock, 0.0.61): running
-# `ty check --error <rule> src/py_launch_blueprint/` passes for each.
+# `ty check --error <rule> src/lost_sessions/` passes for each.
 # `error-on-warning` is set explicitly to false below (not left implicit): a
 # dependency `deprecated` warning must not fail every fork's CI, and pinning the
 # value keeps CI deterministic across ty upgrades (its default is version-
@@ -302,7 +302,7 @@ ignore-words-list = "ans,porjects,unparseable"
 # ans: variable name used in prompt-handling code; codespell wants to "fix"
 # it to "and". Whitelist to keep the short variable name.
 # porjects: intentional typo — the did-you-mean example in cli/groups.py and
-# its test ("plbp porjects" must suggest "projects").
+# its test ("lost_sessions porjects" must suggest "projects").
 check-filenames = true
 check-hidden = false
 
@@ -313,7 +313,7 @@ check-hidden = false
 # (core / cli / web); the feature-first reshape (HEX-02) + tach come with the
 # second capability.
 [tool.importlinter]
-root_package = "py_launch_blueprint"
+root_package = "lost_sessions"
 # Required because the framework-bleed contract names external packages
 # (fastapi/click/uvicorn) as forbidden imports.
 include_external_packages = true
@@ -321,31 +321,31 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "core never imports the front-ends (inward-only, HEX-01)"
 type = "forbidden"
-source_modules = ["py_launch_blueprint.core"]
-forbidden_modules = ["py_launch_blueprint.cli", "py_launch_blueprint.web"]
+source_modules = ["lost_sessions.core"]
+forbidden_modules = ["lost_sessions.cli", "lost_sessions.web"]
 
 [[tool.importlinter.contracts]]
 name = "cli and web are independent of each other"
 type = "independence"
-modules = ["py_launch_blueprint.cli", "py_launch_blueprint.web"]
+modules = ["lost_sessions.cli", "lost_sessions.web"]
 
 [[tool.importlinter.contracts]]
 name = "composition root is not imported by core (HEX-04)"
 type = "forbidden"
-source_modules = ["py_launch_blueprint.core"]
-forbidden_modules = ["py_launch_blueprint.composition"]
+source_modules = ["lost_sessions.core"]
+forbidden_modules = ["lost_sessions.composition"]
 
 [[tool.importlinter.contracts]]
 name = "core layering: models < services < adapters (HEX-01)"
 type = "layers"
 layers = [
-  "py_launch_blueprint.core.adapters",
-  "py_launch_blueprint.core.services",
-  "py_launch_blueprint.core.models",
+  "lost_sessions.core.adapters",
+  "lost_sessions.core.services",
+  "lost_sessions.core.models",
 ]
 
 [[tool.importlinter.contracts]]
 name = "core does not import web/cli frameworks (framework-bleed, HEX-32)"
 type = "forbidden"
-source_modules = ["py_launch_blueprint.core"]
+source_modules = ["lost_sessions.core"]
 forbidden_modules = ["fastapi", "click", "uvicorn"]

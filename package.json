@@ -1,8 +1,8 @@
 {
-  "name": "py-launch-blueprint-tooling",
+  "name": "lost-sessions-tooling",
   "version": "0.0.0",
   "private": true,
-  "description": "Bun-managed commitlint and release tooling for py-launch-blueprint.",
+  "description": "Bun-managed commitlint and release tooling for lost-sessions.",
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",

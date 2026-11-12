@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "py-launch-blueprint",
+    "title": "lost-sessions",
     "description": "REST API over the same core library the CLI uses. Errors are RFC 9457 `application/problem+json`; business routes live under `/v1`; collections paginate with `page`/`size` query params.",
     "version": "0.0.0"
   },
@@ -34,7 +34,7 @@
           "ops"
         ],
         "summary": "Readyz",
-        "description": "Readiness: the same checks as ``plbp doctor`` (503 on any error).",
+        "description": "Readiness: the same checks as ``lost_sessions doctor`` (503 on any error).",
         "operationId": "ops-readyz",
         "responses": {
           "200": {
@@ -229,7 +229,7 @@
           "checks"
         ],
         "title": "DoctorReport",
-        "description": "Aggregated diagnostics for `plbp doctor`."
+        "description": "Aggregated diagnostics for `lost_sessions doctor`."
       },
       "Health": {
         "properties": {
