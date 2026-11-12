@@ -1,0 +1,360 @@
+# CI/CD - per-job split (ITM-024 hardening + ITM-025 lint + ITM-026 ty +
+# ITM-030 matrix). Hygiene tools live in their own workflows (ITM-011/014/017).
+#
+# WL-001/WL-002: tool versions come from uv.lock (`uv sync --locked` +
+# `uv run --no-sync`), never floating `uvx` — CI matches local hooks exactly.
+# WL-006/WL-019: `changes` gates the heavy jobs on docs-only PRs; `ci-ok` is
+# the single required status for branch protection (skipped jobs count as ok).
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # The merge queue emits merge_group (not pull_request) for its speculative
+  # merge — without this trigger the ci-ok required check never reports and
+  # every queue entry deadlocks at "Expected".
+  merge_group:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # WL-019 - detect whether the diff touches anything beyond docs/prose, so
+  # the expensive jobs (test matrix, typecheck, build) skip on docs-only PRs.
+  # Shell-based (same pattern as large-file-guard) - no third-party action.
+  # On push to main everything always runs.
+  changes:
+    name: changes
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0  # need the PR base to diff against
+      - name: Detect code changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "INFO: ${EVENT_NAME} event - running all jobs"
+            exit 0
+          fi
+          # Skip-list: paths that can never affect lint/types/tests/build.
+          # Anything NOT matching these patterns counts as a code change.
+          # README.md is markdown but NOT skippable: it's `project.readme`,
+          # a packaging input that build-smoke must validate (CodeRabbit).
+          skip='^docs/|^assets/|^\.vscode/|^\.cursor/|^\.windsurf|\.md$'
+          skip="$skip|^LICENSE$|^\.github/ISSUE_TEMPLATE/"
+          # .contributors.jsonl is contributors-please's generated ledger -
+          # bookkeeping only, so the weekly bot PR stays on the docs-only
+          # fast path now that its commits no longer carry [skip ci].
+          skip="$skip|^\.contributors\.jsonl$"
+          changed="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          if printf '%s\n' "$changed" | grep -qx 'README\.md' \
+              || printf '%s\n' "$changed" \
+              | grep -vE "$skip" \
+              | grep -q .; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "INFO: code paths changed - running all jobs"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "INFO: docs-only diff - skipping heavy jobs"
+          fi
+
+  # ITM-025 - lint job (ruff check + format --check). Decided round 3 (option B).
+  # Always runs (fast) - ruff also lints docs snippets and init/ tooling.
+  lint:
+    name: lint
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+      - name: Sync locked dev tools
+        run: uv sync --locked --only-group dev
+      - name: Ruff check
+        run: uv run --no-sync ruff check .
+      - name: Ruff format check
+        run: uv run --no-sync ruff format --check .
+
+  release-generation:
+    name: release-generation
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install pinned Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2
+        with:
+          bun-version-file: .bun-version
+      - name: Install frozen tooling
+        run: bun install --frozen-lockfile
+      - name: Test release generation
+        run: bun test tests/release
+
+  # ITM-026 - typecheck job (ty, per ADR-03). Decided round 3 direct switch.
+  typecheck:
+    name: typecheck
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+      - name: Sync dev env (ty needs project deps on the python path)
+        run: uv sync --locked --group dev --extra web
+      - name: ty check
+        run: uv run --no-sync ty check src/py_launch_blueprint/
+
+  # ADR 0018 - architectural boundary gate. import-linter (HEX-30) and tach
+  # (HEX-31) previously ran ONLY in the pre-push hook / `just check`, so a
+  # --no-verify push or an uninstalled hook could land boundary violations
+  # with no CI gate. Both build an import/module graph, so gate behind the
+  # changes detector (skip docs-only PRs) like typecheck. WL-001: locked via
+  # uv.lock, matching the pre-push hook exactly.
+  import-boundaries:
+    name: import-boundaries
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+      - name: Sync dev env (graph build needs project deps importable)
+        run: uv sync --locked --group dev --extra web
+      - name: import-linter (HEX-30)
+        run: uv run --no-sync lint-imports
+      - name: tach (HEX-31)
+        run: uv run --no-sync tach check
+
+  # ITM-030 - test matrix: ubuntu + macOS x py3.13 (decided round 3);
+  # windows added alongside the platform-native default paths (REC-24).
+  test:
+    name: test (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: >-
+      ${{
+        matrix.os == 'ubuntu' && (vars.RUNNER_UBUNTU || 'ubuntu-latest') ||
+        matrix.os == 'macos' && (vars.RUNNER_MACOS || 'macos-latest') ||
+        matrix.os == 'windows' && (vars.RUNNER_WINDOWS || 'windows-latest') ||
+        matrix.os
+      }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+      id-token: write  # OIDC for tokenless Codecov upload (public repo)
+    strategy:
+      fail-fast: false  # see all failures, not just the first (round-3)
+      matrix:
+        os: [ubuntu, macos, windows]
+        python-version: ["3.13"]
+        # Runtime coverage on Linux; 3.13 retains the full platform matrix.
+        include:
+          - os: ubuntu
+            python-version: "3.14"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Sync dev env
+        run: uv sync --locked --group dev --extra web  # PEP 735; web extra covers web/
+      # Coverage runs only on the one matrix cell that uploads it. Every other
+      # cell used to compute coverage and discard it — the Codecov step below
+      # has always been gated to ubuntu/3.13 — while still paying for the
+      # pytest-cov + xdist combine step. That combine is where
+      # `coverage.exceptions.DataError: no such table: other_db.file` came from:
+      # one worker's .coverage.* SQLite file is unreadable, the worker dies, and
+      # xdist then reports the downstream `KeyError: <WorkerController gwN>`.
+      # It is a known pytest-cov/xdist issue, flaky at roughly 12% of runs
+      # (measured: 14 pass / 2 fail over 16 runs of test (macos / py3.13)).
+      # Not running coverage where nothing consumes it removes the exposure on
+      # two of three cells and makes those jobs faster. There is no fail_under
+      # and nothing else reads coverage.xml, so no signal is lost.
+      - name: Run tests with coverage
+        if: matrix.os == 'ubuntu' && matrix.python-version == '3.13'
+        # CI includes slow tests but excludes unprovisioned live tests.
+        # Local defaults skip both markers (ITM-046 addopts).
+        # WL-008: `-n auto` parallelises across the runner's cores; branch
+        # coverage is on via [tool.coverage.run] (ADR-0019). xdist + pytest-cov
+        # combine coverage from all workers automatically.
+        run: >-
+          uv run --no-sync pytest -m "not live" -n auto
+          --cov=py_launch_blueprint --cov-report=xml
+      - name: Run tests
+        if: ${{ !(matrix.os == 'ubuntu' && matrix.python-version == '3.13') }}
+        run: uv run --no-sync pytest -m "not live" -n auto
+      - name: Upload coverage to Codecov
+        # Only the Ubuntu matrix cell uploads coverage.
+        # use_oidc: tokenless upload (public repo). Requires `id-token: write`.
+        if: matrix.os == 'ubuntu' && matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v7.1.1
+        with:
+          use_oidc: true
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+
+  # P10 / sweep ISS-001 - the matrix above installs only the web extra, so
+  # the tracing path (web/telemetry.py, core/logging.py trace stamping) never
+  # runs there and opentelemetry-* bumps went untested at PR time. This leg
+  # adds the otel extra and runs the suites that exercise it; the matrix keeps
+  # covering the default no-otel install and its degrade path.
+  test-otel:
+    name: test-otel
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          python-version: "3.13"
+      - name: Sync dev env with the otel extra
+        run: uv sync --locked --group dev --extra web --extra otel
+      - name: Run tracing-relevant tests
+        run: >-
+          uv run --no-sync pytest -m "not live" -n auto
+          tests/web tests/core/test_logging.py
+
+  # WL-004 - build + install smoke test. Catches packaging breakage (missing
+  # files, broken entry point, bad metadata) at PR time instead of at the
+  # release tag. uv end-to-end: uv build -> twine metadata check (locked via
+  # dev group) -> install wheel AND sdist into fresh envs and run the CLI.
+  build-smoke:
+    name: build-smoke
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Sync locked dev tools
+        run: uv sync --locked --only-group dev
+      - name: Check dist metadata (twine)
+        run: uv run --no-sync twine check dist/*
+      - name: Smoke test wheel install
+        run: uvx --from "$(ls dist/*.whl)" plbp --version
+      - name: Smoke test sdist install
+        run: uvx --from "$(ls dist/*.tar.gz)" plbp --version
+
+  # WL-021 - docs build with warnings-as-errors. Broken cross-references and
+  # autodoc failures block the PR instead of surfacing on ReadTheDocs after
+  # merge. Link checking is external-network-flaky, so it lives in the weekly
+  # workflow (dep-audit.yml) instead of here.
+  docs:
+    name: docs
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+      - name: Sync docs env (web extra so autodoc imports resolve)
+        run: uv sync --locked --group docs --extra web
+      - name: Sphinx build (warnings are errors)
+        run: uv run --no-sync sphinx-build -W -b html docs/source docs/_build/html
+
+  # Taplo (TOML formatter check) kept here for now; ITM-066 will fold into
+  # justfile + add a dedicated workflow if needed.
+  toml-format:
+    name: toml-format-check
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install just
+        uses: extractions/setup-just@v4
+      # `just install-taplo` now downloads the upstream pre-built binary
+      # (curl + gunzip from https://github.com/tamasfe/taplo/releases) —
+      # ~1-3s installed vs the prior ~2min `cargo install taplo-cli`. Same
+      # path as local dev; no external installer action needed.
+      - name: Install taplo
+        run: just install-taplo
+      - name: Check TOML formatting
+        run: taplo check '**/*.toml'
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install ShellCheck
+        run: |
+          bash scripts/install-shellcheck.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Check shell scripts
+        run: bash scripts/check-shell.sh
+
+  # WL-006 - single gate for branch protection. Require ONLY this check;
+  # job renames/additions then never desync the required-checks list.
+  # Skipped jobs (docs-only PRs, WL-019) count as success; anything that
+  # failed or was cancelled fails the gate.
+  ci-ok:
+    name: ci-ok
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    needs:
+      - changes
+      - lint
+      - release-generation
+      - typecheck
+      - import-boundaries
+      - test
+      - test-otel
+      - build-smoke
+      - docs
+      - toml-format
+      - shellcheck
+    if: always()
+    permissions: {}
+    steps:
+      - name: Check aggregate result
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "job results: ${RESULTS}"
+          for r in ${RESULTS}; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "FAIL: at least one required job did not succeed" >&2
+              exit 1
+            fi
+          done
+          echo "PASS: all required jobs succeeded or were skipped"

@@ -1,0 +1,351 @@
+# Copyright (c) 2026, Steve Morin
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+[project]
+name = "py_launch_blueprint"
+# ITM-070 — static version (ADR-06 cutover). release-please bumps this.
+version = "4.0.1"
+description = "CLI tools for interacting with Py, including project search functionality"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT" # PEP 639 license expression (ITM-070, round-19).
+authors = [{ name = "Steve Morin", email = "steve.morin@gmail.com" }]
+classifiers = [
+  # ITM-070 — round-19. py3.13+ only (per ITM-033 floor); MIT classifier
+  # intentionally omitted (PEP 639 license expression above is the single
+  # source of truth — duplication would drift).
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "click>=8.1.0",
+  "pydantic>=2.0.0",   # structured result models (the JSON representation)
+  "structlog>=24.1.0", # structured logging (human-friendly TTY / JSON otherwise)
+  "tomli-w>=1.0.0",    # writing the TOML config file (`config set`)
+  "requests>=2.31.0",
+  "rich>=13.0.0",
+]
+
+# Single-distribution + extras strategy. The library (core/) and CLI always
+# install; the web service ships behind the `web` extra:
+#   uv sync --extra web   /   pip install py-launch-blueprint[web]
+# Tracing is a further opt-in (`otel` extra) — heavy deps, soft-imported.
+[project.optional-dependencies]
+web = [
+  "fastapi>=0.110.0",
+  "uvicorn[standard]>=0.29.0",
+  "pydantic-settings>=2.4.0",                 # WEB-30 typed env settings
+  "fastapi-pagination>=0.12.26",              # WEB-03 pagination conventions
+  "slowapi>=0.1.9",                           # WEB-22 rate limiting
+  "prometheus-fastapi-instrumentator>=7.0.0", # WEB-11 RED metrics + /metrics
+]
+otel = [
+  # WEB-10 — distributed tracing (soft-imported by web/telemetry.py).
+  "opentelemetry-sdk>=1.27.0",
+  "opentelemetry-exporter-otlp>=1.27.0",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
+]
+
+# ITM-063 — PEP 735 dependency-groups (round-13 decision). Replaces
+# [project.optional-dependencies] dev+docs. Install via `uv sync --group <name>`.
+[dependency-groups]
+dev = [
+  "pytest>=7.0.0",
+  "pytest-cov>=4.1.0",
+  "ty>=0.0.1a16",        # per ADR-03 (pre-1.0; bump as needed)
+  "ruff>=0.1.0",
+  "httpx>=0.27.0",       # fastapi TestClient transport (tests/web; web extra)
+  "schemathesis>=4.0.0", # WEB-50 contract fuzzing from the OpenAPI schema
+  "types-requests",
+  "types-Pygments",
+  "cogapp",
+  # WL-001 — hook/CI tools pinned via uv.lock (run with `uv run`, not floating
+  # `uvx`), so local hooks and CI use the same version and upgrades arrive as
+  # reviewable dependabot PRs instead of surprise breakage.
+  "bandit>=1.8.0",
+  "codespell>=2.4.0",
+  "editorconfig-checker>=3.0.0",
+  "yamllint>=1.35.0",
+  "pip-audit>=2.9.0",            # WL-014 — `just audit` + scheduled dep-audit workflow
+  "twine>=6.1.0",                # WL-004 — dist metadata check in the build-smoke CI job
+  "syrupy>=4.8.0",               # WL-023 — CLI --help snapshot tests
+  "import-linter>=2.0",          # HEX-30 — architectural layer/boundary rules
+  "tach>=0.35.0",
+  # Testing-strategy shortlist (ADR-0019).
+  "pytest-xdist>=3.6",     # WL-008 — parallel test execution (`-n auto`)
+  "pytest-timeout>=2.3",   # WL-009 — per-test timeout guard (hung test fails loud)
+  "pytest-randomly>=3.15", # WL-010 — randomized order surfaces inter-test coupling
+  "hypothesis>=6.100",     # WL-013 — property-based tests at parse/serialize seams
+  "responses>=0.25",       # HEX-40 — HTTP mock for the port-contract suite
+  "template-press==4.1.0",
+]
+
+docs = [
+  "sphinx>=7.0.0",
+  "sphinx-rtd-theme",
+  "furo",
+  "myst-parser",
+  "sphinx-autodoc-typehints",
+  "cogapp",
+  "sphinx-copybutton",
+  "sphinx-autobuild",
+  "sphinxext-opengraph",      # https://github.com/wpilibsuite/sphinxext-opengraph
+]
+
+
+[project.scripts]
+# Noun-verb CLI (gh-style): plbp <noun> <verb>
+plbp = "py_launch_blueprint.cli.main:cli"
+
+# ITM-072 — package metadata URLs (round 19).
+[project.urls]
+Homepage = "https://github.com/smorinlabs/py-launch-blueprint"
+Repository = "https://github.com/smorinlabs/py-launch-blueprint"
+Documentation = "https://py-launch-blueprint.readthedocs.io/en/latest/"
+Changelog = "https://github.com/smorinlabs/py-launch-blueprint/blob/main/CHANGELOG.md"
+Issues = "https://github.com/smorinlabs/py-launch-blueprint/issues"
+
+# ITM-073 — uv_build (ADR-06 cutover; replaces Hatchling + hatch-vcs).
+[build-system]
+requires = ["uv_build>=0.5,<1.0"]
+build-backend = "uv_build"
+
+# ITM-074 — uv_build module configuration.
+# Template uses a flat layout (package at repo root, not src/) — must set
+# module-root = "" so uv_build doesn't expect src/py_launch_blueprint/.
+[tool.uv.build-backend]
+module-name = "py_launch_blueprint"
+# src/ layout (Decision 1) — package now lives at src/py_launch_blueprint/.
+module-root = "src"
+
+[tool.ruff]
+# ITM-018 reconciled config (round-2). Merge: template's stricter rule
+# selection + source's ignore rationale. target-version reflects ITM-033
+# Python-floor bump.
+target-version = "py313"
+line-length = 88
+
+lint.select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+  "N",   # pep8-naming
+  "RUF", # Ruff-specific rules
+  "W",   # pycodestyle warnings
+  "YTT", # flake8-2020
+  "S",   # flake8-bandit
+  "ANN", # flake8-annotations — enforce annotation *presence* (P03; the gap ty
+  # deliberately does NOT check). Scoped to the package via
+  # per-file-ignores below; tests/ are exempt.
+]
+
+# Source's ignore rationale (round-2): line-length handled by formatter;
+# template-applicable subset adopted (B904/B007 omitted — source-specific
+# patterns that don't apply here).
+lint.ignore = [
+  "E501", # line too long (formatter owns this)
+  "W293", # whitespace on blank line (formatter owns trim_trailing)
+]
+lint.unfixable = [] # Rules that should not be fixed automatically
+
+# Allow autofix behavior for specific rules
+fix = true
+
+# Exclude files/folders
+exclude = [
+  ".git",
+  ".venv",
+  "__pycache__",
+  "build",
+  "dist",
+  "docs/source/conf.py",
+  "src/py_launch_blueprint/_version.py",
+  "prototypes",                          # P0004 template-press engine prototypes (own lint config in template-press)
+]
+# Per-file-ignores
+[tool.ruff.lint.pycodestyle]
+max-line-length = 88
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # Ignore unused imports in __init__.py files
+"tests/*" = [
+  "S101",
+  "S105",
+  "S106",
+  "ANN",
+] # asserts + annotations optional in tests
+# S101: assert statements removed under -O — security risk if assert is the only gate.
+# S105/S106: hardcoded password strings/variables in code.
+
+# ITM-018 — explicit format config (round-2; mirrors source). Values match Ruff
+# defaults but being explicit prevents silent drift if defaults change.
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# Pyright/Pylance (IDE) strict type checking — formerly pyrightconfig.json.
+# CI typechecking runs ty (ADR-03); this section drives the VS Code Pyright
+# extension and ad-hoc `pyright` runs.
+[tool.pyright]
+include = ["src/py_launch_blueprint", "tests"]
+exclude = ["**/node_modules", "**/__pycache__"]
+defineConstant = { DEBUG = true }
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+useLibraryCodeForTypes = true
+reportMissingImports = true
+reportMissingTypeStubs = true
+reportUnknownParameterType = true
+reportUnknownArgumentType = true
+reportUnknownLambdaType = true
+reportUnknownVariableType = true
+reportUnknownMemberType = true
+reportMissingTypeArgument = true
+reportInvalidTypeVarUse = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportDuplicateImport = true
+reportPrivateUsage = "warning"
+reportUnusedImport = true
+reportUnusedVariable = true
+reportUnusedFunction = true
+reportUnusedClass = true
+
+# ty (Astral) is the CI type-check authority (ADR-03). ty is rule-based, not
+# strict-mode-based: its correctness core already defaults to `error`, so this
+# block only promotes the handful of quality rules that ship below `error`.
+# Each was verified against the pinned ty (see uv.lock, 0.0.61): running
+# `ty check --error <rule> src/py_launch_blueprint/` passes for each.
+# `error-on-warning` is set explicitly to false below (not left implicit): a
+# dependency `deprecated` warning must not fail every fork's CI, and pinning the
+# value keeps CI deterministic across ty upgrades (its default is version-
+# sensitive pre-1.0). `strict-literal-narrowing` is left off as an optional
+# stricter knob. See projects/P03-type-precision-uplevel.md.
+[tool.ty.environment]
+python-version = "3.13" # matches requires-python floor; explicit for determinism
+
+[tool.ty.rules]
+ambiguous-protocol-member = "error"      # core/ports.py exposes Protocol ports
+blanket-ignore-comment = "error"         # every `# ty: ignore` must name its rule
+invalid-ignore-comment = "error"
+ignore-comment-unknown-rule = "error"
+ineffective-final = "error"
+invalid-enum-member-annotation = "error"
+invalid-named-tuple-override = "error"
+
+[tool.ty.terminal]
+error-on-warning = false # warnings (e.g. `deprecated`) inform; they don't gate CI
+
+# ITM-027 — bandit config (round 3). Tests legitimately use `assert`
+# (pytest convention) — exclude_dirs covers tests/.
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "build", "dist"]
+skips = []                                         # No global skips; add with rationale only.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+# Marker taxonomy (ITM-046, round-9 decision).
+# `live` = requires external services; `slow` = takes >1s.
+# Default `addopts` excludes both — run full suite with `pytest -m ""`.
+markers = ["live: requires external services", "slow: takes >1s"]
+addopts = "-m 'not live and not slow'"
+strict_markers = true
+# WL-009 — a hung test fails loudly instead of burning a CI slot. `thread`
+# method (not the POSIX-only signal default) so the cap also holds on the
+# Windows matrix leg. A genuinely slow test overrides via
+# `@pytest.mark.timeout(N)`.
+timeout = 60
+timeout_method = "thread"
+# WL-010 (pytest-randomly) reorders tests each run with a printed, replayable
+# seed (`-p randomly --randomly-seed=…`) to surface hidden inter-test coupling;
+# it needs no config. Parallelism (WL-008, `-n auto`) is opt-in per invocation
+# (`just test -n auto`, and the CI full-suite + canary runs) rather than in
+# default addopts, so the fast local inner loop keeps clean `-x`/pdb behaviour.
+
+# Branch coverage (ADR-0019): count both-arms of every branch, not just line
+# execution, so the Codecov gate (WL-005) catches untested conditionals.
+[tool.coverage.run]
+branch = true
+
+# ITM-015 — codespell. US English baseline (default builtin="clear,rare"); empty
+# ignore list — add terms only when intentional. Decided round 9.
+[tool.codespell]
+skip = ".git,.venv,build,dist,node_modules,uv.lock,bun.lock,*.lock,docs/_build,*.svg,*.cast,.ruff_cache,.pytest_cache,.mypy_cache,.ty_cache,*.log"
+# *.log: raw run output, not prose.
+ignore-words-list = "ans,porjects,unparseable"
+# ans: variable name used in prompt-handling code; codespell wants to "fix"
+# it to "and". Whitelist to keep the short variable name.
+# porjects: intentional typo — the did-you-mean example in cli/groups.py and
+# its test ("plbp porjects" must suggest "projects").
+check-filenames = true
+check-hidden = false
+
+# HEX-30 — import-linter: enforce the hexagonal boundaries described in
+# docs/design/0005-hexagonal-architecture-and-enforcement.md. Run via
+# `uv run lint-imports` (locked dev group, WL-001); wired into `just check`
+# and the pre-push hook. Contracts match the CURRENT layer-first layout
+# (core / cli / web); the feature-first reshape (HEX-02) + tach come with the
+# second capability.
+[tool.importlinter]
+root_package = "py_launch_blueprint"
+# Required because the framework-bleed contract names external packages
+# (fastapi/click/uvicorn) as forbidden imports.
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core never imports the front-ends (inward-only, HEX-01)"
+type = "forbidden"
+source_modules = ["py_launch_blueprint.core"]
+forbidden_modules = ["py_launch_blueprint.cli", "py_launch_blueprint.web"]
+
+[[tool.importlinter.contracts]]
+name = "cli and web are independent of each other"
+type = "independence"
+modules = ["py_launch_blueprint.cli", "py_launch_blueprint.web"]
+
+[[tool.importlinter.contracts]]
+name = "composition root is not imported by core (HEX-04)"
+type = "forbidden"
+source_modules = ["py_launch_blueprint.core"]
+forbidden_modules = ["py_launch_blueprint.composition"]
+
+[[tool.importlinter.contracts]]
+name = "core layering: models < services < adapters (HEX-01)"
+type = "layers"
+layers = [
+  "py_launch_blueprint.core.adapters",
+  "py_launch_blueprint.core.services",
+  "py_launch_blueprint.core.models",
+]
+
+[[tool.importlinter.contracts]]
+name = "core does not import web/cli frameworks (framework-bleed, HEX-32)"
+type = "forbidden"
+source_modules = ["py_launch_blueprint.core"]
+forbidden_modules = ["fastapi", "click", "uvicorn"]

@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Launch Main",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/py_launch_blueprint/cli/main.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Launch Main (With Args)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/py_launch_blueprint/cli/main.py",
+            "args": [
+                "projects",
+                "list",
+                "--workspace",
+                "test",
+                "--limit",
+                "10"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

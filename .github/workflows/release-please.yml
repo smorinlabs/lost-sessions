@@ -1,0 +1,67 @@
+# Release-please workflow (ITM-052 + ITM-053 + ITM-054).
+# Opens an internally consistent release PR on push to main; release-please
+# updates pyproject.toml and uv.lock atomically in the generated release commit.
+# Per ADR-05. Auth uses one of two mechanisms that can BOTH open PRs and trigger
+# downstream workflows (publish.yml) — GITHUB_TOKEN is intentionally NOT used as
+# a fallback, since it never triggers downstream workflows and may be blocked
+# from opening PRs by org policy:
+#   1. GitHub App (preferred): set RELEASE_PLEASE_CLIENT_ID + RELEASE_PLEASE_PRIVATE_KEY
+#      (App with Contents + Pull requests: write). Client ID is the modern
+#      (non-deprecated) input name for actions/create-github-app-token@v3;
+#      this workflow mints an installation token from these values.
+#   2. Fallback PAT: set RELEASE_PLEASE_APP_TOKEN (fine-grained PAT, Contents +
+#      Pull requests: write).
+# See docs/RELEASE.md for setup. With neither configured, release-please fails fast.
+
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false  # never cancel an in-flight release PR
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # Surfaced so the app-token step's `if:` can test it (secrets are not
+      # available directly in `if:` conditions). Empty unless the App is set up.
+      RP_CLIENT_ID: ${{ secrets.RELEASE_PLEASE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2
+        with:
+          bun-version-file: .bun-version
+      - name: Install frozen release tooling
+        run: bun install --frozen-lockfile
+
+      # Mint a GitHub App installation token when the App is configured, so the
+      # release PR/tag triggers downstream workflows. Skipped otherwise.
+      - name: Mint release-please app token
+        id: app-token
+        if: ${{ env.RP_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.RELEASE_PLEASE_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_PRIVATE_KEY }}
+
+      - name: release-please
+        env:
+          # Minted App installation token (preferred) or the RELEASE_PLEASE_APP_TOKEN
+          # PAT — both open PRs and trigger downstream workflows. See docs/RELEASE.md.
+          RELEASE_PLEASE_TOKEN: ${{ steps.app-token.outputs.token || secrets.RELEASE_PLEASE_APP_TOKEN }}
+          RELEASE_PLEASE_APPLY: '1'
+        run: bun scripts/release_please.cjs

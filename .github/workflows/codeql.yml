@@ -1,0 +1,68 @@
+# CodeQL static analysis (ITM-034 hardening + ITM-035 analyze job updates).
+# Python-only matrix (decided round 5: no JS even with bun.lock).
+# Scheduled weekly Sunday 04:00 UTC (decided round 5).
+#
+# Advanced setup: this workflow + .github/codeql/codeql-config.yml ARE the
+# CodeQL config. The repo's "default setup" (Settings > Code security) must
+# stay disabled, or the SARIF upload is rejected with a configuration error.
+# See SECURITY.md > Code Scanning Setup. This applies to every fork too.
+# GitHub Code Security is unavailable to unlicensed private repositories, so
+# the job stays skipped until the repository becomes public.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 0'  # weekly, Sunday 04:00 UTC
+  public:
+
+permissions: {}
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-visibility:
+    name: inspect repository visibility
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    outputs:
+      is-public: ${{ steps.visibility.outputs.result }}
+    steps:
+      - name: Inspect repository visibility
+        id: visibility
+        uses: actions/github-script@v9
+        with:
+          result-encoding: string
+          script: |
+            const { data: repository } = await github.rest.repos.get(context.repo);
+            return repository.visibility === "public";
+
+  analyze:
+    needs: repository-visibility
+    if: ${{ needs.repository-visibility.outputs.is-public == 'true' }}
+    name: analyze (python)
+    runs-on: ${{ vars.RUNNER_UBUNTU || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v4.38.3
+        with:
+          languages: python
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4.38.3
+        with:
+          category: "/language:python"
