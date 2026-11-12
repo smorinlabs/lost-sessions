@@ -50,7 +50,7 @@ def test_regeneration_checks_bun_before_replacing_lock(tmp_path, runner, version
     search_path = str(bindir)
     if version is not None:
         search_path += os.pathsep + os.defpath
-    result = subprocess.run(  # noqa: S603 — controlled test executables
+    result = subprocess.run(
         command,
         cwd=tmp_path,
         env={**os.environ, "PATH": search_path},
@@ -90,7 +90,7 @@ def test_bun_installer_accepts_pin_line_endings(tmp_path, line_ending):
         tool = bindir / name
         tool.write_text("#!/bin/sh\n" + body)
         tool.chmod(0o755)
-    result = subprocess.run(  # noqa: S603 — copied installer with controlled tools
+    result = subprocess.run(
         [executable, str(installer)],
         cwd=tmp_path,
         env={**os.environ, "PATH": str(bindir) + os.pathsep + os.defpath},

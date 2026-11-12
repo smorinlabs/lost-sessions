@@ -32,7 +32,7 @@ def test_release_result_reaches_required_gate(release_result, expected):
     )
     bash = shutil.which("bash")
     assert bash
-    result = subprocess.run(  # noqa: S603 — checked-in script, synthetic results
+    result = subprocess.run(
         [bash, "-c", step["run"]],
         cwd=ROOT,
         env={**os.environ, "RESULTS": results},

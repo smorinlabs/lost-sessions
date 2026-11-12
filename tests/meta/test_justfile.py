@@ -12,7 +12,7 @@ def test_contributors_recipe_runs_contributors_please() -> None:
     if just is None:
         pytest.skip("just is not installed in this test job")
 
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [just, "--dry-run", "contributors"],
         cwd=ROOT,
         check=True,

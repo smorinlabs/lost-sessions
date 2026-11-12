@@ -38,7 +38,7 @@ def test_claude_review_configuration_controls_execution(tmp_path, credential):
     summary.touch()
     bash = shutil.which("bash")
     assert bash is not None
-    result = subprocess.run(  # noqa: S603 — checked-in workflow, synthetic input
+    result = subprocess.run(
         [
             bash,
             "--noprofile",
