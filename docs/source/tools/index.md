@@ -1,6 +1,6 @@
 # Tools Overview
 
-Welcome to the Tools section of the Py Launch Blueprint documentation. This section provides detailed information about the various tools used in the project, including their configurations and usage.
+Welcome to the Tools section of the Lost Sessions documentation. This section provides detailed information about the various tools used in the project, including their configurations and usage.
 
 <!-- ## Table of Contents -->
 

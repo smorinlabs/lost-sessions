@@ -19,8 +19,8 @@ To ensure consistency and maintainability, please follow these code style guidel
 1. **Fork the Repository**: Create a fork of the repository on GitHub.
 2. **Clone the Repository**: Clone your forked repository to your local machine.
    ```bash
-   git clone https://github.com/your-username/py-launch-blueprint.git
-   cd py-launch-blueprint
+   git clone https://github.com/your-username/lost-sessions.git
+   cd lost-sessions
    ```
 3. **Create a Branch**: Create a new branch for your feature or bugfix.
    ```bash

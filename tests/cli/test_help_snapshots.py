@@ -11,7 +11,7 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from py_launch_blueprint.cli.main import cli
+from lost_sessions.cli.main import cli
 
 
 def _walk(cmd: click.Command, path: tuple[str, ...]):
@@ -25,7 +25,9 @@ def _walk(cmd: click.Command, path: tuple[str, ...]):
 ALL_COMMANDS = list(_walk(cli, ()))
 
 
-@pytest.mark.parametrize("path", ALL_COMMANDS, ids=lambda p: " ".join(("plbp", *p)))
+@pytest.mark.parametrize(
+    "path", ALL_COMMANDS, ids=lambda p: " ".join(("lost_sessions", *p))
+)
 def test_help_snapshot(path, snapshot, monkeypatch):
     """Each command's --help output must match its committed golden snapshot."""
     # Click wraps help text to the terminal width (shutil.get_terminal_size

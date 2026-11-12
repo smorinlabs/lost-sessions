@@ -1,25 +1,25 @@
 # Project Structure
 
-The Py Launch Blueprint project follows a modular and organized directory layout to ensure maintainability and scalability. This section provides an overview of the directory structure and the purpose of each directory and file.
+The Lost Sessions project follows a modular and organized directory layout to ensure maintainability and scalability. This section provides an overview of the directory structure and the purpose of each directory and file.
 
 ## Directory Layout
 
 The project is organized into the following directories:
 
 ```
-py-launch-blueprint/
+lost-sessions/
 ├── tests/                          # Test files
 ├── docs/                           # Documentation files
 ├── Justfile                        # Just task runner configuration
 ├── Makefile                        # Makefile for building the project
-└── src/py_launch_blueprint/        # Source code for the project
+└── src/lost_sessions/        # Source code for the project
 ```
 
 Detailed version of the project structure:
 
 
 ```
-py-launch-blueprint/
+lost-sessions/
 ├── .github/                        # GitHub configuration files
 │   ├── ISSUE_TEMPLATE/             # Issue templates
 │   ├── PULL_REQUEST_TEMPLATE       # Pull request templates
@@ -35,7 +35,7 @@ py-launch-blueprint/
 │   │   ├── reference/              # Technical references
 │   │   └── contributing/           # Contribution guidelines
 │   └── build/                      # Built documentation files
-├── src/py_launch_blueprint/        # Source code for the project
+├── src/lost_sessions/        # Source code for the project
 │   ├── __init__.py                 # Package initialization
 │   ├── cli/                        # Click CLI (thin presentation layer)
 │   ├── core/                       # Library: logic + Pydantic models
@@ -76,7 +76,7 @@ py-launch-blueprint/
 ├── Makefile                        # Makefile for building the project
 ├── mise.toml                       # mise toolchain (optional provisioner; ADR 0005)
 ├── PULL_REQUEST_TEMPLATE.md        # Pull request template
-├── src/py_launch_blueprint/        # Source code for the project
+├── src/lost_sessions/        # Source code for the project
 │   ├── __init__.py                 # Package initialization
 │   ├── cli/                        # Click CLI (thin presentation layer)
 │   ├── core/                       # Library: logic + Pydantic models
@@ -101,7 +101,7 @@ Contains GitHub-specific configuration files, including GitHub Actions workflows
 
 Contains all documentation files, including Sphinx source files, static assets, and built documentation.
 
-### src/py_launch_blueprint/
+### src/lost_sessions/
 
 Contains the source code for the project, organized into the `cli/`, `core/`, and `web/` layers.
 

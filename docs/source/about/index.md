@@ -1,6 +1,6 @@
-# About Py Launch Blueprint
+# About Lost Sessions
 
-Welcome to Py Launch Blueprint! This section covers the project's purpose, philosophy, and key features, giving you a clear understanding of what it offers.
+Welcome to Lost Sessions! This section covers the project's purpose, philosophy, and key features, giving you a clear understanding of what it offers.
 
 
 ```{toctree}

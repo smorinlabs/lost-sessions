@@ -62,7 +62,7 @@ We will restore hook ↔ CI parity with CI as the authority:
    Architectural boundaries are now enforced authoritatively in CI, with a
    fast local mirror at pre-push.
 2. **Add `ty check` to the pre-push hook** (`uv run --extra web ty check
-   src/py_launch_blueprint/`), matching CI's typecheck job. Pre-push, not
+   src/lost_sessions/`), matching CI's typecheck job. Pre-push, not
    pre-commit: it is a full-tree check, too slow to run per commit (same
    tier rationale as bandit).
 3. **Add a staged-scoped `taplo` check to pre-commit** on `*.toml`, mirroring

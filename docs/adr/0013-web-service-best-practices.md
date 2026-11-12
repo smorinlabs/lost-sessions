@@ -18,7 +18,7 @@ headers, typed configuration, and — above all — contract safety (knowing whe
 a PR breaks the API).
 
 Constraints: the web layer must stay a *thin adapter* over
-`py_launch_blueprint.core` (one data contract shared with the CLI), must not
+`lost_sessions.core` (one data contract shared with the CLI), must not
 burden CLI-only installs, and every file must remain rebrandable by the init
 system.
 
@@ -49,7 +49,7 @@ design 0002) with one best-of-breed library each, all behind extras:
    rate-limit 429s) still emit them. Idempotency replay
    (`Idempotency-Key`, Stripe semantics: only 2xx cached) sits innermost
    with an in-memory store shaped for a Redis swap.
-6. **Production posture** — `python -m py_launch_blueprint.web` runs
+6. **Production posture** — `python -m lost_sessions.web` runs
    uvicorn with settings-driven graceful shutdown; the multi-stage uv
    Dockerfile is non-root, lockfile-frozen, bytecode-compiled, with a
    `/healthz` HEALTHCHECK.
@@ -80,7 +80,7 @@ design 0002) with one best-of-breed library each, all behind extras:
   gateway path open.
 - **Always-on OTel in the `web` extra** — rejected: the dependency tree is
   heavy and tracing is deployment-specific; a soft-imported `otel` extra
-  keeps `pip install py-launch-blueprint[web]` lean.
+  keeps `pip install lost-sessions[web]` lean.
 - **Generating OpenAPI on the fly only** (no committed snapshot) — rejected:
   without a committed artifact there is nothing for PR review, oasdiff, or
   client generation to diff against; the snapshot IS the contract.

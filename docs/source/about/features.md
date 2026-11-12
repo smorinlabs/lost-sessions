@@ -1,4 +1,4 @@
-# 🚀 **Key Features of Py Launch Blueprint**
+# 🚀 **Key Features of Lost Sessions**
 
 - **Zero Configuration Setup**: Get started immediately with pre-configured development tools
 - **Type Safety First**: Built-in MyPy configuration and VS Code integration for robust type checking

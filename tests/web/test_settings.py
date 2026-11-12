@@ -1,6 +1,6 @@
 """Typed env settings (WEB-30).
 
-The literal PLBP_WEB_* names below are intentional: they are registered in
+The literal LOST_SESSIONS_WEB_* names below are intentional: they are registered in
 init/manifest.toml, so a fork's `just init` rewrites them along with the code
 (same convention as tests/cli/test_pylb.py).
 """
@@ -10,11 +10,11 @@ import os
 import pytest
 from pydantic import ValidationError
 
-from py_launch_blueprint.web.settings import ENV_PREFIX, WebSettings
+from lost_sessions.web.settings import ENV_PREFIX, WebSettings
 
 
 def test_prefix_derives_from_app_name():
-    assert ENV_PREFIX == "PLBP_WEB_"
+    assert ENV_PREFIX == "LOST_SESSIONS_WEB_"
 
 
 def test_defaults_are_safe(monkeypatch):
@@ -31,9 +31,9 @@ def test_defaults_are_safe(monkeypatch):
 
 
 def test_env_overrides(monkeypatch):
-    monkeypatch.setenv("PLBP_WEB_PORT", "9001")
-    monkeypatch.setenv("PLBP_WEB_CORS_ORIGINS", '["https://app.example"]')
-    monkeypatch.setenv("PLBP_WEB_RATE_LIMIT", "100/minute")
+    monkeypatch.setenv("LOST_SESSIONS_WEB_PORT", "9001")
+    monkeypatch.setenv("LOST_SESSIONS_WEB_CORS_ORIGINS", '["https://app.example"]')
+    monkeypatch.setenv("LOST_SESSIONS_WEB_RATE_LIMIT", "100/minute")
     settings = WebSettings()
     assert settings.port == 9001
     assert settings.cors_origins == ["https://app.example"]
@@ -41,6 +41,6 @@ def test_env_overrides(monkeypatch):
 
 
 def test_invalid_value_fails_at_boot(monkeypatch):
-    monkeypatch.setenv("PLBP_WEB_PORT", "not-a-port")
+    monkeypatch.setenv("LOST_SESSIONS_WEB_PORT", "not-a-port")
     with pytest.raises(ValidationError):
         WebSettings()

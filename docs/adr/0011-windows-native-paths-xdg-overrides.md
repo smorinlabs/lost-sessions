@@ -19,8 +19,8 @@ on.
 Keep one override mechanism on every platform: **an XDG variable that is
 set, absolute, and non-empty always wins.** Only the *defaults* become
 platform-native on Windows, matching `platformdirs` shapes without taking
-the dependency: config → `%APPDATA%\plbp`, data/state → `%LOCALAPPDATA%\plbp`
-(Windows has no data/state split), cache → `%LOCALAPPDATA%\plbp\Cache`,
+the dependency: config → `%APPDATA%\lost_sessions`, data/state → `%LOCALAPPDATA%\lost_sessions`
+(Windows has no data/state split), cache → `%LOCALAPPDATA%\lost_sessions\Cache`,
 system config → `%PROGRAMDATA%`. `XDG_CONFIG_DIRS` splits on `;` under the
 Windows flag. POSIX (including macOS) behavior is byte-identical to before.
 

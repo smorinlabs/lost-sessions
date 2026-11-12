@@ -1,7 +1,7 @@
 # ty
 
 This project uses both ty and pyright/Pylance for type checking (per
-[ADR-03](https://github.com/smorinlabs/py-launch-blueprint/blob/main/docs/adr/README.md)):
+[ADR-03](https://github.com/smorinlabs/lost-sessions/blob/main/docs/adr/README.md)):
 
 - **ty** is used in CI and at the command line for strict type checking.
 - **Pylance** is used in VS Code for real-time feedback during development.
@@ -30,7 +30,7 @@ just typecheck
 or directly:
 
 ```bash
-uv run ty check src/py_launch_blueprint/
+uv run ty check src/lost_sessions/
 ```
 
 ## Suppressing diagnostics
@@ -56,7 +56,7 @@ uv add --group dev types-requests
 ## Type checking only specific files
 
 ```bash
-uv run ty check src/py_launch_blueprint/cli/main.py
+uv run ty check src/lost_sessions/cli/main.py
 ```
 
 ## VS Code Settings for pyright/Pylance

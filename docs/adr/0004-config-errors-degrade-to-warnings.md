@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-10
 - **Deciders:** maintainer (via code-review batch), implemented post-review in PR #378/#379
-- **Related:** [design 0001](../design/0001-plbp-cli-conventions.md) §6–§7
+- **Related:** [design 0001](../design/0001-lost_sessions-cli-conventions.md) §6–§7
 
 ## Context
 

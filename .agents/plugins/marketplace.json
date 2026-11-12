@@ -1,7 +1,7 @@
 {
-  "name": "py-launch-blueprint",
+  "name": "lost-sessions",
   "interface": {
-    "displayName": "py-launch-blueprint"
+    "displayName": "lost-sessions"
   },
   "plugins": [
     {

@@ -20,10 +20,10 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 import responses
 
-from py_launch_blueprint.core.adapters.in_memory import InMemoryProjectsRepository
-from py_launch_blueprint.core.adapters.py_api import PyApiProjectsRepository
-from py_launch_blueprint.core.models import Project
-from py_launch_blueprint.core.ports import ProjectsRepository
+from lost_sessions.core.adapters.in_memory import InMemoryProjectsRepository
+from lost_sessions.core.adapters.py_api import PyApiProjectsRepository
+from lost_sessions.core.models import Project
+from lost_sessions.core.ports import ProjectsRepository
 
 # --- canonical seed data (expressed once, shared by both adapters) -----------
 

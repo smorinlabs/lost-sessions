@@ -1,5 +1,5 @@
 # ITM-004 — gitleaks config. Extends default rules (no narrowing). Decided round 2.
-title = "py-launch-blueprint gitleaks config"
+title = "lost-sessions gitleaks config"
 
 # Use upstream gitleaks default rule set as the foundation.
 [extend]

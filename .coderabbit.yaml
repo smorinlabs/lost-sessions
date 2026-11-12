@@ -27,7 +27,7 @@ reviews:
       instructions: |
         Treat AGENTS.md and CLAUDE.md as the source of truth for this repo.
         Enforce: strict typing (ty), ruff lint + format at line length 88,
-        absolute intra-package imports (from py_launch_blueprint...), explicit
+        absolute intra-package imports (from lost_sessions...), explicit
         error handling over assertions, and no hardcoded credentials (bandit).
         Focus on production changes; ignore test-only scaffolding unless it
         makes production behavior worse.

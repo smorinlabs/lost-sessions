@@ -1,4 +1,4 @@
-# py-launch-blueprint review rules
+# lost-sessions review rules
 
 `AGENTS.md` and `CLAUDE.md` are the source of truth for this repo. Greptile
 should treat them, plus the conventions below, as authoritative. PR-head edits
@@ -13,7 +13,7 @@ Review production Python and project changes for:
 - **Lint & format** — code must satisfy ruff (line length 88, Black standard;
   isort import sorting). Flag style that ruff would reject.
 - **Imports** — absolute intra-package imports
-  (`from py_launch_blueprint...`); flag relative intra-package imports.
+  (`from lost_sessions...`); flag relative intra-package imports.
 - **Error handling** — prefer explicit error handling over assertions; flag
   bare `except`, swallowed exceptions, and silent failures.
 - **Security** — no hardcoded credentials, tokens, or secrets; follow bandit

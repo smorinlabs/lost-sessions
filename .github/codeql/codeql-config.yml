@@ -3,7 +3,7 @@
 # must stay DISABLED, or this workflow's upload fails with a configuration
 # error. See SECURITY.md > Code Scanning Setup. Applies to forks too.
 
-name: "py-launch-blueprint codeql"
+name: "lost-sessions codeql"
 
 # security-extended adds security queries on top of the default code-scanning
 # suite (more taint-tracking / CWE coverage). Higher recall for some extra

@@ -12,7 +12,7 @@ The main workflow is `.github/workflows/ci.yml`. It runs for pull requests to
 |---|---|
 | `changes` | Detects code and packaging changes; documentation-only pull requests can skip the heavier jobs. |
 | `lint` | Ruff lint and formatting checks using locked development tools. |
-| `typecheck` | Types under `src/py_launch_blueprint/`, with the web extra installed. |
+| `typecheck` | Types under `src/lost_sessions/`, with the web extra installed. |
 | `import-boundaries` | Import and module boundaries through import-linter and Tach. |
 | `test` | Python 3.13 on Linux, macOS and Windows; Python 3.14 on Linux. Includes slow tests and excludes provisioned live tests. |
 | `test-otel` | Python 3.13 on Linux with the `otel` extra. Runs the web and logging tests so the tracing path is exercised. |
@@ -83,4 +83,4 @@ maintainers should add acceptance tests for their own application behavior.
 `main`. Tagged releases trigger `publish.yml`, which publishes to TestPyPI
 before PyPI. `publish-container.yml` checks containers on PRs and publishes
 stable release images separately. Configure the required services before the
-first release; see [release instructions](https://github.com/smorinlabs/py-launch-blueprint/blob/main/docs/RELEASE.md).
+first release; see [release instructions](https://github.com/smorinlabs/lost-sessions/blob/main/docs/RELEASE.md).

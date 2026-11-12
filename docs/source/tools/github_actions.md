@@ -1,13 +1,13 @@
 # GitHub Actions
 
-GitHub Actions runs automated checks and release workflows for Py Launch Blueprint.
+GitHub Actions runs automated checks and release workflows for Lost Sessions.
 The checked-in configuration lives in
-[`.github/workflows/`](https://github.com/smorinlabs/py-launch-blueprint/tree/main/.github/workflows).
+[`.github/workflows/`](https://github.com/smorinlabs/lost-sessions/tree/main/.github/workflows).
 
 ## Workflow configuration
 
 The main workflow is
-[`ci.yml`](https://github.com/smorinlabs/py-launch-blueprint/blob/main/.github/workflows/ci.yml).
+[`ci.yml`](https://github.com/smorinlabs/lost-sessions/blob/main/.github/workflows/ci.yml).
 It runs for pushes to `main`, pull requests targeting `main`, and merge-queue
 validation through the `merge_group` event.
 

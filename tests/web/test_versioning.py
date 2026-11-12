@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from py_launch_blueprint.web.versioning import V1_PREFIX, deprecation_headers
+from lost_sessions.web.versioning import V1_PREFIX, deprecation_headers
 
 
 def test_v1_prefix_value():

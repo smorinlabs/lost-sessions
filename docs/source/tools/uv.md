@@ -1,6 +1,6 @@
 # UV Package Manager
 
-UV is a fast Python package manager that provides efficient dependency management. This guide covers how to set up and use UV in the *Py Launch Blueprint* project.
+UV is a fast Python package manager that provides efficient dependency management. This guide covers how to set up and use UV in the *Lost Sessions* project.
 
 ## Installation
 

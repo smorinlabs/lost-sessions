@@ -1,28 +1,29 @@
 # serializer version: 1
-# name: test_help_snapshot[plbp completion]
+# name: test_help_snapshot[lost_sessions completion]
   '''
-  Usage: plbp completion [OPTIONS] {bash|zsh|fish}
+  Usage: lost_sessions completion [OPTIONS] {bash|zsh|fish}
   
     Print a shell completion script.
   
-    Examples:     plbp completion bash >> ~/.bashrc     eval "$(plbp completion
-    zsh)"
+    Examples:     lost_sessions completion bash >> ~/.bashrc     eval
+    "$(lost_sessions completion zsh)"
   
   Options:
     -h, --help  Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp config get]
+# name: test_help_snapshot[lost_sessions config get]
   '''
-  Usage: plbp config get [OPTIONS] {logging.file|logging.file_level|logging.format
-                         |logging.level|output.color|output.format|token}
+  Usage: lost_sessions config get [OPTIONS] {logging.file|logging.file_level|loggi
+                                  ng.format|logging.level|output.color|output.form
+                                  at|token}
   
     Show a resolved config value and where it came from.
   
-    The token is masked and resolves from flag/env only. Examples:     plbp config
-    get output.color     plbp config get logging.level --json     plbp config get
-    token
+    The token is masked and resolves from flag/env only. Examples:
+    lost_sessions config get output.color     lost_sessions config get
+    logging.level --json     lost_sessions config get token
   
   Options:
     -o, --output [text|json|markdown]
@@ -40,25 +41,26 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp config init]
+# name: test_help_snapshot[lost_sessions config init]
   '''
-  Usage: plbp config init [OPTIONS]
+  Usage: lost_sessions config init [OPTIONS]
   
     Create or update the config file with guided prompts.
   
     Asks (on stderr, so stdout stays pipe-safe) for the most common settings,
     offering the currently resolved values as defaults, then writes them to the
     TOML config file. Secrets are never written — the token stays in --token /
-    $PLBP_TOKEN. Examples:
+    $LOST_SESSIONS_TOKEN. Examples:
   
-        plbp config init     plbp config init --yes       # accept current values,
-        no prompts     plbp config init --dry-run   # preview, write nothing
+        lost_sessions config init     lost_sessions config init --yes       #
+        accept current values, no prompts     lost_sessions config init --dry-run
+        # preview, write nothing
   
   Options:
     --dry-run                       Show what would change; write nothing.
@@ -78,19 +80,19 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp config path]
+# name: test_help_snapshot[lost_sessions config path]
   '''
-  Usage: plbp config path [OPTIONS]
+  Usage: lost_sessions config path [OPTIONS]
   
     Show the config file path and whether it exists.
   
-    Examples:     plbp config path     plbp config path --json
+    Examples:     lost_sessions config path     lost_sessions config path --json
   
   Options:
     -o, --output [text|json|markdown]
@@ -108,25 +110,27 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp config set]
+# name: test_help_snapshot[lost_sessions config set]
   '''
-  Usage: plbp config set [OPTIONS] {logging.file|logging.file_level|logging.format
-                         |logging.level|output.color|output.format} VALUE
+  Usage: lost_sessions config set [OPTIONS] {logging.file|logging.file_level|loggi
+                                  ng.format|logging.level|output.color|output.form
+                                  at} VALUE
   
     Write a non-secret config value to the TOML config file.
   
-    KEY is a dotted path into the config tables. Examples:     plbp config set
-    output.color always     plbp config set logging.level info     plbp config set
-    logging.file_level debug --yes
+    KEY is a dotted path into the config tables. Examples:     lost_sessions
+    config set output.color always     lost_sessions config set logging.level info
+    lost_sessions config set logging.file_level debug --yes
   
-    Secrets are never stored here — supply the token via --token or $PLBP_TOKEN.
-    Prompts before overwriting an existing value unless --yes.
+    Secrets are never stored here — supply the token via --token or
+    $LOST_SESSIONS_TOKEN. Prompts before overwriting an existing value unless
+    --yes.
   
   Options:
     --dry-run                       Show what would change; write nothing.
@@ -146,15 +150,15 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp config]
+# name: test_help_snapshot[lost_sessions config]
   '''
-  Usage: plbp config [OPTIONS] COMMAND [ARGS]...
+  Usage: lost_sessions config [OPTIONS] COMMAND [ARGS]...
   
     Inspect and edit CLI configuration.
   
@@ -169,9 +173,9 @@
   
   '''
 # ---
-# name: test_help_snapshot[plbp doctor]
+# name: test_help_snapshot[lost_sessions doctor]
   '''
-  Usage: plbp doctor [OPTIONS]
+  Usage: lost_sessions doctor [OPTIONS]
   
     Diagnose configuration and environment.
   
@@ -198,19 +202,20 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp projects get]
+# name: test_help_snapshot[lost_sessions projects get]
   '''
-  Usage: plbp projects get [OPTIONS] PROJECT_ID
+  Usage: lost_sessions projects get [OPTIONS] PROJECT_ID
   
     Fetch a single project by its ID.
   
-    Examples:     plbp projects get 12345     plbp projects get 12345 --json
+    Examples:     lost_sessions projects get 12345     lost_sessions projects get
+    12345 --json
   
   Options:
     -o, --output [text|json|markdown]
@@ -228,20 +233,20 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp projects list]
+# name: test_help_snapshot[lost_sessions projects list]
   '''
-  Usage: plbp projects list [OPTIONS]
+  Usage: lost_sessions projects list [OPTIONS]
   
     List projects, optionally filtered by workspace.
   
-    Examples:     plbp projects list     plbp projects list --workspace "My
-    Workspace" --json     plbp projects list -o markdown
+    Examples:     lost_sessions projects list     lost_sessions projects list
+    --workspace "My Workspace" --json     lost_sessions projects list -o markdown
   
   Options:
     --workspace TEXT                Filter projects by workspace name.
@@ -262,15 +267,15 @@
     --config FILE                   Path to a TOML config file (overrides layered
                                     discovery).
     --token TEXT                    Py Personal Access Token (overrides
-                                    $PLBP_TOKEN). Never stored.
+                                    $LOST_SESSIONS_TOKEN). Never stored.
     --no-input                      Never prompt; fail instead (for scripts/CI).
     -h, --help                      Show this message and exit.
   
   '''
 # ---
-# name: test_help_snapshot[plbp projects]
+# name: test_help_snapshot[lost_sessions projects]
   '''
-  Usage: plbp projects [OPTIONS] COMMAND [ARGS]...
+  Usage: lost_sessions projects [OPTIONS] COMMAND [ARGS]...
   
     List and inspect Py projects.
   
@@ -283,15 +288,15 @@
   
   '''
 # ---
-# name: test_help_snapshot[plbp]
+# name: test_help_snapshot[lost_sessions]
   '''
-  Usage: plbp [OPTIONS] COMMAND [ARGS]...
+  Usage: lost_sessions [OPTIONS] COMMAND [ARGS]...
   
-    plbp — a gh-style CLI for Py.
+    lost_sessions — a gh-style CLI for Py.
   
-    Commands follow a noun-verb shape, e.g. `plbp projects list`. Every command
-    supports -o/--output {text,json,markdown}, --json, -v/--verbose, --no-color,
-    and --config. Results go to stdout; logs and errors go to stderr.
+    Commands follow a noun-verb shape, e.g. `lost_sessions projects list`. Every
+    command supports -o/--output {text,json,markdown}, --json, -v/--verbose, --no-
+    color, and --config. Results go to stdout; logs and errors go to stderr.
   
   Options:
     -V, --version  Show version, Python, and platform, then exit.

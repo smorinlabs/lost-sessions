@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from py_launch_blueprint.core import paths
+from lost_sessions.core import paths
 
 _XDG_VARS = (
     "XDG_CONFIG_HOME",
@@ -34,28 +34,30 @@ def windows(monkeypatch, tmp_path):
 
 def test_windows_config_uses_appdata(windows):
     roaming, _local = windows
-    assert paths.config_dir() == roaming / "plbp"
-    assert paths.config_file() == roaming / "plbp" / "plbp_config.toml"
+    assert paths.config_dir() == roaming / "lost_sessions"
+    assert (
+        paths.config_file() == roaming / "lost_sessions" / "lost_sessions_config.toml"
+    )
 
 
 def test_windows_data_and_state_use_localappdata(windows):
     _roaming, local = windows
-    assert paths.data_dir() == local / "plbp"
-    assert paths.state_dir() == local / "plbp"
+    assert paths.data_dir() == local / "lost_sessions"
+    assert paths.state_dir() == local / "lost_sessions"
 
 
 def test_windows_cache_nested_under_app_dir(windows):
     _roaming, local = windows
-    assert paths.cache_dir() == local / "plbp" / "Cache"
+    assert paths.cache_dir() == local / "lost_sessions" / "Cache"
 
 
 def test_windows_xdg_override_still_wins(windows, monkeypatch, tmp_path):
     xdg = tmp_path / "xdg"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
-    assert paths.config_dir() == xdg / "plbp"
+    assert paths.config_dir() == xdg / "lost_sessions"
     monkeypatch.setenv("XDG_CACHE_HOME", str(xdg))
-    # explicit override keeps the POSIX <base>/plbp shape, no Cache nesting
-    assert paths.cache_dir() == xdg / "plbp"
+    # explicit override keeps the POSIX <base>/lost_sessions shape, no Cache nesting
+    assert paths.cache_dir() == xdg / "lost_sessions"
 
 
 def test_windows_native_env_unset_falls_back_to_home(windows, monkeypatch):
@@ -78,7 +80,7 @@ def test_posix_defaults_unchanged(monkeypatch):
     assert paths.config_home() == Path.home() / ".config"
     assert paths.data_home() == Path.home() / ".local" / "share"
     assert paths.state_home() == Path.home() / ".local" / "state"
-    assert paths.cache_dir() == Path.home() / ".cache" / "plbp"
+    assert paths.cache_dir() == Path.home() / ".cache" / "lost_sessions"
     assert paths.config_dirs() == [Path("/etc/xdg")]
 
 

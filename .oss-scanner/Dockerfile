@@ -2,8 +2,8 @@
 # the root Dockerfile for that. The scanner builds this with the repository
 # as the build context, then runs its agents fully offline, so everything a
 # test or exploit might need is installed here.
-#   docker build -f .oss-scanner/Dockerfile -t plbp-oss-scanner .
-#   docker run --rm --network none plbp-oss-scanner uv run pytest
+#   docker build -f .oss-scanner/Dockerfile -t lost_sessions-oss-scanner .
+#   docker run --rm --network none lost_sessions-oss-scanner uv run pytest
 
 FROM oven/bun:1.3.5-debian AS bun
 

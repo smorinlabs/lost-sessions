@@ -1,13 +1,13 @@
-# `plbp` web service — REST over the same core
+# `lost_sessions` web service — REST over the same core
 
-The web service is the FastAPI counterpart of the `plbp` CLI: a thin adapter
+The web service is the FastAPI counterpart of the `lost_sessions` CLI: a thin adapter
 over the same `core` library, exposing the same Pydantic models over HTTP with
 production REST practices already wired (each carries a **WEB-xx** id — see
 [docs/design/0002](docs/design/0002-web-api-conventions.md)).
 
 ## Architecture
 
-The package is split into three layers under `src/py_launch_blueprint/`:
+The package is split into three layers under `src/lost_sessions/`:
 
 | Layer | Path | Role |
 |-------|------|------|
@@ -24,7 +24,7 @@ plus one entry in `web/routers/__init__.py`, like the CLI's command groups.
 ```bash
 uv sync --group dev --extra web      # install the web extra
 just serve                           # dev server with auto-reload
-python -m py_launch_blueprint.web    # production-shaped runner (settings-driven)
+python -m lost_sessions.web    # production-shaped runner (settings-driven)
 just docker-web                      # multi-stage production image (optional)
 ```
 
@@ -35,7 +35,7 @@ Interactive docs are at `http://127.0.0.1:8000/docs` once running.
 | Path | Purpose |
 |------|---------|
 | `/healthz` | Liveness + version (unversioned ops endpoint) |
-| `/readyz` | Readiness — same checks as `plbp doctor`; 503 problem doc on failure |
+| `/readyz` | Readiness — same checks as `lost_sessions doctor`; 503 problem doc on failure |
 | `/metrics` | Prometheus RED metrics (on by default) |
 | `/v1/projects` | Paginated project collection (`page`/`size` query params) |
 | `/v1/projects/{id}` | Single project |
@@ -45,22 +45,22 @@ tree, never an in-place mutation.
 
 ## Configuration (env vars, WEB-30)
 
-Everything is a `PLBP_WEB_*` env var (prefix derived from the app name, so
+Everything is a `LOST_SESSIONS_WEB_*` env var (prefix derived from the app name, so
 forks rename cleanly). Invalid values fail at boot. Risky features are wired
 but **off by default** — one env var enables each.
 
 | Env var | Default | Effect |
 |---------|---------|--------|
-| `PLBP_WEB_HOST` / `PLBP_WEB_PORT` | `127.0.0.1` / `8000` | Bind address for the runner |
-| `PLBP_WEB_ROOT_PATH` | empty | Path prefix when behind a reverse proxy |
-| `PLBP_WEB_CORS_ORIGINS` | `[]` | JSON list; empty = CORS middleware not installed |
-| `PLBP_WEB_RATE_LIMIT` | unset | e.g. `100/minute`; unset = rate limiting off (WEB-22) |
-| `PLBP_WEB_METRICS_ENABLED` | `true` | `/metrics` endpoint (WEB-11) |
-| `PLBP_WEB_OTEL_ENABLED` | `false` | OTel tracing — needs the `otel` extra (WEB-10) |
-| `PLBP_WEB_IDEMPOTENCY_TTL_SECONDS` | `86400` | Idempotency replay-cache TTL (WEB-05) |
-| `PLBP_WEB_GRACEFUL_SHUTDOWN_SECONDS` | `10` | Drain window on shutdown (WEB-31) |
+| `LOST_SESSIONS_WEB_HOST` / `LOST_SESSIONS_WEB_PORT` | `127.0.0.1` / `8000` | Bind address for the runner |
+| `LOST_SESSIONS_WEB_ROOT_PATH` | empty | Path prefix when behind a reverse proxy |
+| `LOST_SESSIONS_WEB_CORS_ORIGINS` | `[]` | JSON list; empty = CORS middleware not installed |
+| `LOST_SESSIONS_WEB_RATE_LIMIT` | unset | e.g. `100/minute`; unset = rate limiting off (WEB-22) |
+| `LOST_SESSIONS_WEB_METRICS_ENABLED` | `true` | `/metrics` endpoint (WEB-11) |
+| `LOST_SESSIONS_WEB_OTEL_ENABLED` | `false` | OTel tracing — needs the `otel` extra (WEB-10) |
+| `LOST_SESSIONS_WEB_IDEMPOTENCY_TTL_SECONDS` | `86400` | Idempotency replay-cache TTL (WEB-05) |
+| `LOST_SESSIONS_WEB_GRACEFUL_SHUTDOWN_SECONDS` | `10` | Drain window on shutdown (WEB-31) |
 
-Secrets follow the CLI's rule: the API token resolves from `$PLBP_TOKEN` only
+Secrets follow the CLI's rule: the API token resolves from `$LOST_SESSIONS_TOKEN` only
 and is never stored in config (see ADR 0002).
 
 ## Error contract (RFC 9457, WEB-01)
@@ -73,7 +73,7 @@ failed readiness — is an `application/problem+json` document:
   "type": "about:blank",
   "title": "Unauthorized",
   "status": 401,
-  "detail": "no API token configured (set $PLBP_TOKEN)",
+  "detail": "no API token configured (set $LOST_SESSIONS_TOKEN)",
   "instance": "/v1/projects"
 }
 ```
@@ -110,11 +110,11 @@ clients parse errors correctly.
 ## Usage
 
 ```bash
-# Liveness / readiness (readiness mirrors `plbp doctor`)
+# Liveness / readiness (readiness mirrors `lost_sessions doctor`)
 curl -s http://127.0.0.1:8000/healthz | jq
 curl -s http://127.0.0.1:8000/readyz | jq
 
-# Paginated projects (same models as `plbp projects list --json`)
+# Paginated projects (same models as `lost_sessions projects list --json`)
 curl -s "http://127.0.0.1:8000/v1/projects?page=1&size=20" | jq
 curl -s http://127.0.0.1:8000/v1/projects/12345 | jq
 

@@ -1,13 +1,13 @@
-# 0016. App short name becomes an obvious placeholder: `plbp` → `acmeapp`
+# 0016. App short name becomes an obvious placeholder: `lost_sessions` → `acmeapp`
 
 - **Status:** Accepted (implementation pending — the mechanical rename has not
-  been applied yet; until it lands, `plbp`/`PLBP` remain the live identity)
+  been applied yet; until it lands, `lost_sessions`/`LOST_SESSIONS` remain the live identity)
 - **Date:** 2026-06-12
 - **Deciders:** maintainer (interactive)
-- **Supersedes:** [ADR 0001](0001-app-short-name-plbp.md) — the *choice of
+- **Supersedes:** [ADR 0001](0001-app-short-name-lost_sessions.md) — the *choice of
   name* only; the hard-rename / no-back-compat-alias policy ADR 0001 set
   still stands
-- **Related:** [design 0001](../design/0001-plbp-cli-conventions.md) §0–§1;
+- **Related:** [design 0001](../design/0001-lost_sessions-cli-conventions.md) §0–§1;
   `init/manifest.toml` (`app_name` / `app_name_upper` fields)
 
 ## Context
@@ -15,27 +15,27 @@
 This repository is permanently a template. It publishes to PyPI solely to
 prove the release machinery works, so nothing about the app short name needs
 to be brand-like or claimable. Yet the short name is the template's most
-user-visible surface: it is the console command, the `PLBP_*` env-var prefix,
+user-visible surface: it is the console command, the `LOST_SESSIONS_*` env-var prefix,
 the XDG namespace (`~/.config/<app>/`), and the file-name prefix
 (`<app>_config.toml`, `<app>.log`).
 
-`plbp` (ADR 0001) was invented for substring-disjointness — text-mode
+`lost_sessions` (ADR 0001) was invented for substring-disjointness — text-mode
 replacement is provably safe because the token cannot occur incidentally. But
 it *reads* like real product branding, which misleads every audience the
 template serves:
 
 - **Repo browsers** can't tell template brand from rename-me placeholder.
-- **Doc readers** can't tell whether `plbp config set token` refers to a real
+- **Doc readers** can't tell whether `lost_sessions config set token` refers to a real
   tool or to their future command.
 - **Forks that skip or half-run `just init`** ship what looks like someone
   else's product name in env vars and config paths.
-- **AI agents** working in forks pattern-match `PLBP_*` as intentional
+- **AI agents** working in forks pattern-match `LOST_SESSIONS_*` as intentional
   project vocabulary and propagate it into new code, instead of flagging it
   as a placeholder to replace.
 
 ## Decision
 
-Replace `plbp` / `PLBP` with **`acmeapp` / `ACMEAPP`** everywhere the
+Replace `lost_sessions` / `LOST_SESSIONS` with **`acmeapp` / `ACMEAPP`** everywhere the
 `app_name` / `app_name_upper` identities apply: the console-script name, the
 `ACMEAPP_*` env prefix, the `_ACMEAPP_COMPLETE` completion var, the XDG
 namespace, and file-name prefixes.
@@ -65,7 +65,7 @@ regenerated OpenAPI snapshot) lands as a separate change.
 
 - **Breaking change** when implemented: the console command, env prefix,
   config/log file names, and XDG paths all change spelling. Per ADR 0001's
-  still-standing policy, this is a hard rename with no `plbp` alias.
+  still-standing policy, this is a hard rename with no `lost_sessions` alias.
 - The placeholder reads as rename-me to humans and AI agents, so a
   half-initialized fork leaks an obvious TODO instead of another project's
   brand.
@@ -75,13 +75,13 @@ regenerated OpenAPI snapshot) lands as a separate change.
   check is the load-bearing control either way.
 - `init/tests/` fixtures keep using `myapp` as the *fork-target* example
   name with no collision against the template's own identity.
-- Until the rename lands, this file mentions the live `plbp` / `PLBP`
+- Until the rename lands, this file mentions the live `lost_sessions` / `LOST_SESSIONS`
   identity and is therefore tracked under `app_name` / `app_name_upper` in
   `init/manifest.toml`.
 
 ## Alternatives considered
 
-- **Keep `plbp`, add disclaimers** (README/AGENTS notes that it's a
+- **Keep `lost_sessions`, add disclaimers** (README/AGENTS notes that it's a
   placeholder) — rejected: mitigates but doesn't fix the first-impression
   problem or agent propagation; relies on readers finding the disclaimer.
 - **`myapp` / `MYAPP`** — rejected: maximum recognizability, but it is the

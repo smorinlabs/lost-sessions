@@ -86,7 +86,7 @@ generator defect. Run `just test-release` for the offline regression suite;
 
 ## Public container publishing (GHCR)
 
-The image is `ghcr.io/smorinlabs/py-launch-blueprint`. Generated projects use
+The image is `ghcr.io/smorinlabs/lost-sessions`. Generated projects use
 their own lowercase GitHub owner/repository name. The existing Dockerfile
 supplies the web service, runs as a non-root user, and listens on port `8000`.
 The initial supported platform is `linux/amd64`.
@@ -124,7 +124,7 @@ repositories. The first run can therefore upload successfully and then fail
 its anonymous pull check. The uploaded version is retained for the retry.
 
 1. After that first upload, open
-   [this repository](https://github.com/smorinlabs/py-launch-blueprint), select
+   [this repository](https://github.com/smorinlabs/lost-sessions), select
    the container under **Packages**, then open **Package settings**.
 2. Under **Danger Zone**, select **Change visibility**, choose **Public**,
    and confirm the package name. GitHub does not allow a public package to

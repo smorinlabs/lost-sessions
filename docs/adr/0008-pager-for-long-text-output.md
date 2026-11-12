@@ -22,7 +22,7 @@ a terminal, **and the underlying stream is a real TTY** (`isatty`; rich's
 `force_terminal` from `color=always` is a styling decision, not an
 interactivity one), and the rendered output is taller than the screen.
 
-The pager command resolves `PLBP_PAGER` > `PAGER` > `less -FRX`, where a
+The pager command resolves `LOST_SESSIONS_PAGER` > `PAGER` > `less -FRX`, where a
 variable that is **set but empty disables** paging (git convention).
 Tokenization is platform-aware (`shlex` POSIX rules on Unix; `posix=False`
 plus quote-stripping on Windows so `C:\…` paths survive). Any launch
@@ -40,7 +40,7 @@ failure falls back to printing the already-rendered text.
 
 ## Alternatives considered
 
-- **`click.echo_via_pager`** — rejected: no `PLBP_PAGER` precedence, no
+- **`click.echo_via_pager`** — rejected: no `LOST_SESSIONS_PAGER` precedence, no
   control over the default flags (`-FRX`), and it re-reads `PAGER` itself.
 - **Always page on TTY (no height check)** — rejected: `less -F` would
   handle it, but non-less pagers would page one-line results.

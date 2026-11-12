@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Type:** Design / convention
 - **Created:** 2026-06-14
-- **Applies to:** `src/py_launch_blueprint/` package structure, the CLI and web
+- **Applies to:** `src/lost_sessions/` package structure, the CLI and web
   front-ends, and the dev/CI tooling that keeps the boundaries honest.
 
 This doc specifies how the core logic is structured so it can be driven from
@@ -19,7 +19,7 @@ The package already has the right instinct: business logic lives in
 `core/`, and both `cli/` and `web/` import it without importing each other.
 That is the **shared in-process core library** pattern (a.k.a. *functional
 core, imperative shell*): the same `ProjectsService` and `Project` models
-serve `plbp projects list` and `GET /v1/projects`. We deliberately do **not**
+serve `lost_sessions projects list` and `GET /v1/projects`. We deliberately do **not**
 adopt the *CLI-over-HTTP* pattern (CLI as a thin client of the running web
 service) — that boundary only earns its cost when the CLI's job is to manage
 a remote, multi-tenant deployment, which is not the case here.
@@ -55,7 +55,7 @@ and `ty` (port satisfaction).
   CLI exposes commands from many of them.
 
   ```
-  src/py_launch_blueprint/
+  src/lost_sessions/
   ├── shared/                       # shared kernel: depended on by all, depends on nothing
   │   ├── errors.py                 #   PyError, ConfigError, AuthError, APIError + ExitCode
   │   ├── logging.py  paths.py  config.py  settings.py  format.py
@@ -120,7 +120,7 @@ and `ty` (port satisfaction).
   ```python
   # projects/application/ports.py
   from typing import Protocol
-  from py_launch_blueprint.projects.domain.models import Project
+  from lost_sessions.projects.domain.models import Project
 
 
   class ProjectsRepository(Protocol):
@@ -245,30 +245,30 @@ is the system of record where they overlap.
 
   ```toml
   [tool.importlinter]
-  root_package = "py_launch_blueprint"
+  root_package = "lost_sessions"
 
   [[tool.importlinter.contracts]]
   name = "Hexagonal layers (inner rings know nothing of outer)"
   type = "layers"
   layers = ["interfaces", "adapters", "application", "domain"]
-  containers = ["py_launch_blueprint.projects"]
+  containers = ["lost_sessions.projects"]
 
   [[tool.importlinter.contracts]]
   name = "CLI and web never import each other"
   type = "forbidden"
-  source_modules = ["py_launch_blueprint.interfaces.cli"]
-  forbidden_modules = ["py_launch_blueprint.interfaces.web"]
+  source_modules = ["lost_sessions.interfaces.cli"]
+  forbidden_modules = ["lost_sessions.interfaces.web"]
   # …and the symmetric contract.
 
   [[tool.importlinter.contracts]]
   name = "Composition root is imported only by the front-ends"
   type = "forbidden"
   source_modules = [
-    "py_launch_blueprint.projects.domain",
-    "py_launch_blueprint.projects.application",
-    "py_launch_blueprint.projects.adapters",
+    "lost_sessions.projects.domain",
+    "lost_sessions.projects.application",
+    "lost_sessions.projects.adapters",
   ]
-  forbidden_modules = ["py_launch_blueprint.composition"]
+  forbidden_modules = ["lost_sessions.composition"]
   ```
 
   Run via `uv run lint-imports` (locked dev group, per WL-001), wired into
@@ -291,7 +291,7 @@ is the system of record where they overlap.
 - **HEX-32 — `ruff` TID251 is the fast, coarse framework guard.** A
   `banned-api` rule catches framework-bleed at pre-commit speed. Because
   ruff's `banned-api` is global, it is scoped to the layer via a nested
-  `src/py_launch_blueprint/core/ruff.toml` that bans `click`/`fastapi`/
+  `src/lost_sessions/core/ruff.toml` that bans `click`/`fastapi`/
   `uvicorn` under `core/` (`requests` stays allowed — the HTTP adapter needs
   it). The authoritative, graph-wide framework-bleed rule remains the
   `import-linter` contract; ruff is the cheap first line, not the system of

@@ -12,8 +12,8 @@ from pathlib import Path
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from py_launch_blueprint.core.config import _read_toml, write_config_data
-from py_launch_blueprint.core.models import Project
+from lost_sessions.core.config import _read_toml, write_config_data
+from lost_sessions.core.models import Project
 
 # Real-world-ish text: any unicode except surrogates (not valid UTF-8) and
 # control chars — so the property is about *our* round-trip, not the encoder's
@@ -52,6 +52,6 @@ def test_config_write_read_round_trips(tmp_path: Path, data: dict):
     file atomically and reads its own data back — no cross-example leakage —
     hence the function-scoped-fixture health check is suppressed deliberately.
     """
-    target = tmp_path / "plbp_config.toml"
+    target = tmp_path / "lost_sessions_config.toml"
     write_config_data(target, data)
     assert _read_toml(target) == data
