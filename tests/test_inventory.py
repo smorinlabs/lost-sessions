@@ -19,6 +19,12 @@ from pathlib import Path
 
 import pytest
 
+# The scanners read the process table with `ps` and `lsof`, and the stand-ins are
+# executable shebang scripts: POSIX only, like the original tool (macOS).
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="agent scanners and stand-ins need POSIX tools"
+)
+
 COMMAND = [sys.executable, "-m", "lost_sessions"]
 
 NOW = time.time()
@@ -85,7 +91,7 @@ def fake_tool(bindir: Path, name: str) -> Path:
     bindir.mkdir(parents=True, exist_ok=True)
     exe = bindir / name
     exe.write_text(
-        "#!/usr/bin/env python3\n"
+        f"#!{sys.executable}\n"  # absolute: a PATH shim would change the pid
         "import os, sys, time\n"
         "held = [open(a) for a in sys.argv[1:] if a.endswith('.lock')]\n"
         "open(os.environ['READY_FILE'], 'w').close()\n"
@@ -1018,3 +1024,112 @@ def test_collect_is_the_stable_library_api(home, world, monkeypatch):
     assert inv.failed == []
     ids = {s.id for s in select(inv)}
     assert world["muse"]["named"] in ids and world["claude"]["renamed"] in ids
+
+
+# --- malformed stores never crash (design 0006, Section 8.1 rule 8) ---------------
+
+
+def test_wrong_typed_fields_mark_the_session_unreadable(home, world):
+    # A numeric cwd (Claude), a null id (Codex), and text in integer timestamp
+    # columns (Muse, OpenCode; SQLite keeps non-numeric text as text): stores
+    # that changed shape must not crash the scan.
+    bad_claude = "44444444-4444-4444-8444-444444444444"
+    write_jsonl(
+        home / ".claude" / "projects" / "-work-alpha" / f"{bad_claude}.jsonl",
+        [
+            {
+                "type": "user",
+                "timestamp": iso(NOW - HOUR),
+                "cwd": 123,
+                "sessionId": bad_claude,
+            },
+        ],
+    )
+    bad_codex = "0f000000-0000-7000-8000-00000000000f"
+    write_jsonl(
+        home
+        / ".codex/sessions/2026/09/20"
+        / f"rollout-2026-09-20T15-00-00-{bad_codex}.jsonl",
+        [
+            {
+                "type": "session_meta",
+                "payload": {"id": None, "timestamp": iso(NOW), "cwd": "/w"},
+            }
+        ],
+    )
+    db = sqlite3.connect(home / ".local/share/muse/session-index.db")
+    db.execute(
+        "UPDATE sessions SET created_at_us = 'soon' WHERE session_id = ?",
+        (world["muse"]["stale"],),
+    )
+    db.commit()
+    db.close()
+    db = sqlite3.connect(home / ".local/share/opencode/opencode.db")
+    db.execute(
+        "UPDATE session SET time_updated = 'later' WHERE id = ?",
+        (world["opencode"]["archived"],),
+    )
+    db.commit()
+    db.close()
+    doc = inventory(home)
+    got = by_id(doc)
+    assert got[bad_claude]["unreadable"] is True
+    assert got[bad_codex]["unreadable"] is True
+    assert got[world["muse"]["stale"]]["unreadable"] is True
+    assert got[world["opencode"]["archived"]]["unreadable"] is True
+    assert got[world["muse"]["named"]]["unreadable"] is False  # neighbours unaffected
+    assert {v["status"] for v in doc["sources"].values()} == {"ok"}
+
+
+def test_collect_reads_every_store_under_the_given_home(
+    home, world, monkeypatch, tmp_path
+):
+    from lost_sessions.inventory import collect
+
+    elsewhere = tmp_path / "not-home"
+    elsewhere.mkdir()
+    monkeypatch.setenv("HOME", str(elsewhere))
+    for var in ("CODEX_HOME", "XDG_DATA_HOME"):
+        monkeypatch.delenv(var, raising=False)
+    inv = collect(home=home)
+    assert {v.status for v in inv.sources.values()} == {"ok"}
+    assert {s.tool for s in inv.sessions} == {"claude", "codex", "muse", "opencode"}
+
+
+def test_claude_lines_that_are_not_objects_are_skipped(home, world):
+    sid = "55555555-5555-4555-8555-555555555555"
+    path = home / ".claude" / "projects" / "-work-alpha" / f"{sid}.jsonl"
+    path.write_text(
+        "[]\nnull\n"
+        + json.dumps(
+            {
+                "type": "user",
+                "timestamp": iso(NOW - HOUR),
+                "cwd": "/work/alpha",
+                "sessionId": sid,
+            }
+        )
+        + "\n"
+    )
+    s = by_id(inventory(home, "--tool", "claude"))[sid]
+    assert s["unreadable"] is False and s["spawn_dir"] == "/work/alpha"
+
+
+def test_missing_process_table_fails_only_the_agents_that_need_it(
+    home, world, monkeypatch
+):
+    import lost_sessions.inventory as inventory_module
+    from lost_sessions.inventory import collect
+
+    def no_ps():
+        raise FileNotFoundError("ps")
+
+    monkeypatch.setattr(inventory_module, "processes", no_ps)
+    monkeypatch.setenv("HOME", str(home))
+    for var in ("CODEX_HOME", "XDG_DATA_HOME"):
+        monkeypatch.delenv(var, raising=False)
+    inv = collect(home=home)
+    assert inv.failed == ["codex", "muse", "opencode"]
+    assert inv.sources["claude"].status == "ok"
+    assert {s.tool for s in inv.sessions} == {"claude"}
+    assert "process table" in inv.sources["muse"].message

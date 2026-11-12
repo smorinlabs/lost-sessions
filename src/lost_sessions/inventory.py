@@ -44,7 +44,14 @@ def collect(
     registered = agent_tools(manager)
     names = list(dict.fromkeys(tools)) if tools else list(registered)
     selected = [registered[name] for name in names]
-    procs = processes() if any(t.needs_processes for t in selected) else {}
+    procs: dict[int, list[str]] = {}
+    no_processes = None
+    if any(t.needs_processes for t in selected):
+        try:
+            procs = processes()
+        except OSError as exc:
+            # Unknown liveness is not "stopped": fail these agents, scan the rest.
+            no_processes = f"process table unavailable: {exc}"
     ctx = ScanContext(home=home or Path.home(), processes=procs)
     sessions: list[Session] = []
     census: dict[str, Census] = {}
@@ -52,6 +59,8 @@ def collect(
     failed: list[str] = []
     for tool in selected:
         try:
+            if no_processes and tool.needs_processes:
+                raise SourceError(f"{tool.name}: {no_processes}")
             result = tool.scan(ctx)
         except (SourceError, OSError) as exc:
             result = ScanResult(

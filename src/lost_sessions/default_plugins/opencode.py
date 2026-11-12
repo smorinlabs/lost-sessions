@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import override
 
 from lost_sessions.agents import (
+    RECORD_ERRORS,
     AgentTool,
     ScanContext,
     SourceError,
@@ -16,6 +17,7 @@ from lost_sessions.agents import (
     open_ro,
     process_cwd,
     runs_tool,
+    unreadable_session,
 )
 from lost_sessions.hookspecs import hookimpl
 from lost_sessions.models import Lineage, Live, ScanResult, Session, SourceStatus
@@ -57,7 +59,7 @@ class OpenCode(AgentTool):
 
     @override
     def scan(self, ctx: ScanContext) -> ScanResult:
-        db_path = data_home() / "opencode" / "opencode.db"
+        db_path = data_home(ctx.home) / "opencode" / "opencode.db"
         if not db_path.is_file():
             return ScanResult(
                 sessions=[], source=SourceStatus(status="absent", path=str(db_path))
@@ -97,38 +99,13 @@ class OpenCode(AgentTool):
         except sqlite3.Error as exc:
             raise SourceError(f"opencode: {db_path}: {exc}") from exc
         records: list[Session] = []
-        hidden = 0
         legacy_ids = {row[0] for row in legacy}
-        for (
-            sid,
-            parent,
-            slug,
-            directory,
-            title,
-            created,
-            updated,
-            archived,
-            fork,
-        ) in rows + legacy:
-            rec = Session(
-                tool="opencode",
-                id=sid,
-                name=slug,
-                title=title,
-                spawn_dir=directory or None,
-                archived=archived is not None,
-                created=iso_from_epoch(created / 1e3),
-                updated=iso_from_epoch(updated / 1e3),
-                export_command=None if sid in legacy_ids else f"opencode export {sid}",
-                live_basis="no opencode process",
-            )
-            if parent:
-                rec.lineage = Lineage(kind="subagent", parent_id=parent)
-                rec.hidden = True
-                hidden += 1
-            elif fork:  # a user fork: listed, like Codex and Muse forks
-                rec.lineage = Lineage(kind="fork", parent_id=fork)
-            records.append(rec)
+        for row in rows + legacy:
+            try:
+                records.append(self._record(row, legacy_ids))
+            except RECORD_ERRORS:
+                records.append(unreadable_session("opencode", row[0]))
+        hidden = sum(r.hidden for r in records)
 
         by_dir: dict[str, list[Session]] = {}
         for rec in records:
@@ -164,6 +141,8 @@ class OpenCode(AgentTool):
                     known[sid].pid = pid if live == "yes" else None
 
         for rec in records:
+            if rec.unreadable:
+                continue
             if rec.live == "yes":
                 rec.resume_blocked = "running"
             elif rec.id in legacy_ids:
@@ -179,6 +158,27 @@ class OpenCode(AgentTool):
             ),
             hidden_subagents=hidden,
         )
+
+    def _record(self, row: tuple, legacy_ids: set[str]) -> Session:
+        sid, parent, slug, directory, title, created, updated, archived, fork = row
+        rec = Session(
+            tool="opencode",
+            id=sid,
+            name=slug,
+            title=title,
+            spawn_dir=directory or None,
+            archived=archived is not None,
+            created=iso_from_epoch(created / 1e3),
+            updated=iso_from_epoch(updated / 1e3),
+            export_command=None if sid in legacy_ids else f"opencode export {sid}",
+            live_basis="no opencode process",
+        )
+        if parent:
+            rec.lineage = Lineage(kind="subagent", parent_id=parent)
+            rec.hidden = True
+        elif fork:  # a user fork: listed, like Codex and Muse forks
+            rec.lineage = Lineage(kind="fork", parent_id=fork)
+        return rec
 
 
 @hookimpl

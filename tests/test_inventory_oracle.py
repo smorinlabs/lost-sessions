@@ -16,6 +16,11 @@ import pytest
 
 from tests.test_inventory import build_claude, build_codex, build_muse, build_opencode
 
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="the oracle and the scanners need POSIX tools"
+)
+
+
 ORACLE = Path(__file__).resolve().parent / "oracle" / "session-inventory"
 
 

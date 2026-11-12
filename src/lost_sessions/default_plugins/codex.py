@@ -11,7 +11,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import override
 
-from lost_sessions.agents import AgentTool, ScanContext, iso_from_epoch, iso_normalize
+from lost_sessions.agents import (
+    RECORD_ERRORS,
+    AgentTool,
+    ScanContext,
+    iso_from_epoch,
+    iso_normalize,
+    unreadable_session,
+)
 from lost_sessions.hookspecs import hookimpl
 from lost_sessions.models import Lineage, ScanResult, Session, SourceStatus
 
@@ -73,66 +80,71 @@ class Codex(AgentTool):
             )
         held = codex_held_locks(root / "thread-writer-locks")
         names = codex_names(root)
-        records, hidden = [], 0
+        records: list[Session] = []
         for path in sorted(sessions.glob("*/*/*/rollout-*.jsonl")):
-            match = _ID.search(path.name)
-            rec = Session(tool="codex", id=match.group(1) if match else path.stem)
-            rec.transcript = str(path)
-            rec.updated = iso_from_epoch(path.stat().st_mtime)
             try:
-                with path.open("r", encoding="utf-8", errors="replace") as fh:
-                    meta = json.loads(fh.readline())["payload"]
-                rec.id = meta.get("id", rec.id)
-            except (ValueError, KeyError, TypeError, AttributeError):
-                rec.unreadable = True
-                records.append(rec)
-                continue
-            rec.spawn_dir = meta.get("cwd")
-            rec.created = iso_normalize(meta.get("timestamp"))
-            # source is "cli"/"exec", {"subagent": "review"}, or
-            # {"subagent": {"thread_spawn": {...}}}
-            source = meta.get("source")
-            subagent = source.get("subagent") if isinstance(source, dict) else None
-            spawn = (
-                (subagent.get("thread_spawn") or {})
-                if isinstance(subagent, dict)
-                else {}
-            )
-            if meta.get("thread_source") in CODEX_HIDDEN_SOURCES:
-                rec.lineage = Lineage(
-                    kind="subagent", parent_id=spawn.get("parent_thread_id")
-                )
-                rec.hidden = True
-                hidden += 1
-            elif meta.get("forked_from_id"):
-                rec.lineage = Lineage(kind="fork", parent_id=meta["forked_from_id"])
-            rec.name = names.get(rec.id)
-            rec.name_resumable = rec.name is not None
-            if rec.id in held:
-                pid = held[rec.id]
-                # app-server hosts (IDE, desktop app, companion plugins) keep
-                # many threads loaded
-                host = (
-                    "app-server"
-                    if "app-server" in ctx.processes.get(pid, [])
-                    else "cli"
-                )
-                rec.live = "yes"
-                rec.live_host = host
-                rec.pid = pid
-                rec.resume_blocked = "running"
-                rec.live_basis = f"writer lock held by pid {pid} ({host})"
-            else:
-                rec.live_basis = "writer lock not held"
-                rec.resume = f"codex resume {rec.id}"
-                if rec.name:
-                    rec.resume_by_name = f"codex resume {shlex.quote(rec.name)}"
-            records.append(rec)
+                records.append(self._record(path, held, names, ctx.processes))
+            except RECORD_ERRORS:
+                records.append(unreadable_session("codex", path.stem, str(path)))
+        hidden = sum(r.hidden for r in records)
         return ScanResult(
             sessions=records,
             source=SourceStatus(status="ok", path=str(sessions)),
             hidden_subagents=hidden,
         )
+
+    def _record(
+        self,
+        path: Path,
+        held: dict[str, int],
+        names: dict[str, str],
+        procs: dict[int, list[str]],
+    ) -> Session:
+        match = _ID.search(path.name)
+        rec = Session(tool="codex", id=match.group(1) if match else path.stem)
+        rec.transcript = str(path)
+        rec.updated = iso_from_epoch(path.stat().st_mtime)
+        try:
+            with path.open("r", encoding="utf-8", errors="replace") as fh:
+                meta = json.loads(fh.readline())["payload"]
+            rec.id = meta.get("id", rec.id)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            rec.unreadable = True
+            return rec
+        rec.spawn_dir = meta.get("cwd")
+        rec.created = iso_normalize(meta.get("timestamp"))
+        # source is "cli"/"exec", {"subagent": "review"}, or
+        # {"subagent": {"thread_spawn": {...}}}
+        source = meta.get("source")
+        subagent = source.get("subagent") if isinstance(source, dict) else None
+        spawn = (
+            (subagent.get("thread_spawn") or {}) if isinstance(subagent, dict) else {}
+        )
+        if meta.get("thread_source") in CODEX_HIDDEN_SOURCES:
+            rec.lineage = Lineage(
+                kind="subagent", parent_id=spawn.get("parent_thread_id")
+            )
+            rec.hidden = True
+        elif meta.get("forked_from_id"):
+            rec.lineage = Lineage(kind="fork", parent_id=meta["forked_from_id"])
+        rec.name = names.get(rec.id)
+        rec.name_resumable = rec.name is not None
+        if rec.id in held:
+            pid = held[rec.id]
+            # app-server hosts (IDE, desktop app, companion plugins) keep
+            # many threads loaded
+            host = "app-server" if "app-server" in procs.get(pid, []) else "cli"
+            rec.live = "yes"
+            rec.live_host = host
+            rec.pid = pid
+            rec.resume_blocked = "running"
+            rec.live_basis = f"writer lock held by pid {pid} ({host})"
+        else:
+            rec.live_basis = "writer lock not held"
+            rec.resume = f"codex resume {rec.id}"
+            if rec.name:
+                rec.resume_by_name = f"codex resume {shlex.quote(rec.name)}"
+        return rec
 
 
 @hookimpl

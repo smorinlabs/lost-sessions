@@ -9,12 +9,14 @@ from typing import override
 
 from lost_sessions.agents import (
     HEAD_LINES,
+    RECORD_ERRORS,
     TAIL_BYTES,
     AgentTool,
     ScanContext,
     cd_prefix,
     iso_from_epoch,
     iso_normalize,
+    unreadable_session,
     utc_lstart,
 )
 from lost_sessions.hookspecs import hookimpl
@@ -74,51 +76,56 @@ class ClaudeCode(AgentTool):
         live = claude_registry(ctx.home)
         records = []
         for path in sorted(root.glob("*/*.jsonl")):
-            rec = Session(tool="claude", id=path.stem)
-            rec.transcript = str(path)
-            rec.updated = iso_from_epoch(path.stat().st_mtime)
-            parsed_any = False
-            with path.open("r", encoding="utf-8", errors="replace") as fh:
-                for _, line in zip(range(HEAD_LINES), fh, strict=False):
-                    try:
-                        obj = json.loads(line)
-                    except ValueError:
-                        continue
-                    parsed_any = True
-                    if obj.get("cwd") and not rec.spawn_dir:
-                        rec.spawn_dir = obj["cwd"]
-                        rec.branch = obj.get("gitBranch")
-                    if obj.get("timestamp") and not rec.created:
-                        rec.created = iso_normalize(obj["timestamp"])
-                    if rec.spawn_dir and rec.created:
-                        break
-            if not parsed_any:
-                rec.unreadable = True
-                records.append(rec)
-                continue
-            rec.title, rec.name = claude_title_and_name(path)
-            entry = live.get(rec.id)
-            if entry:
-                rec.live = "yes"
-                rec.live_host = "cli"
-                rec.pid = entry["pid"]
-                rec.tmux = entry.get("tmux")
-                rec.live_basis = (
-                    f"registry pid {entry['pid']} alive, start time matches"
-                )
-                rec.name = rec.name or entry.get("name")
-            else:
-                rec.live_basis = "no live registry entry"
-            if rec.live == "yes":
-                rec.resume_blocked = "running"
-            elif rec.spawn_dir:
-                rec.resume = f"{cd_prefix(rec.spawn_dir)}claude --resume {rec.id}"
-            else:
-                rec.resume_blocked = "no_workspace"
-            records.append(rec)
+            try:
+                records.append(self._record(path, live))
+            except RECORD_ERRORS:
+                records.append(unreadable_session("claude", path.stem, str(path)))
         return ScanResult(
             sessions=records, source=SourceStatus(status="ok", path=str(root))
         )
+
+    def _record(self, path: Path, live: dict[str, dict]) -> Session:
+        rec = Session(tool="claude", id=path.stem)
+        rec.transcript = str(path)
+        rec.updated = iso_from_epoch(path.stat().st_mtime)
+        parsed_any = False
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            for _, line in zip(range(HEAD_LINES), fh, strict=False):
+                try:
+                    obj = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(obj, dict):  # valid JSON that is not a record
+                    continue
+                parsed_any = True
+                if obj.get("cwd") and not rec.spawn_dir:
+                    rec.spawn_dir = obj["cwd"]
+                    rec.branch = obj.get("gitBranch")
+                if obj.get("timestamp") and not rec.created:
+                    rec.created = iso_normalize(obj["timestamp"])
+                if rec.spawn_dir and rec.created:
+                    break
+        if not parsed_any:
+            rec.unreadable = True
+            return rec
+        rec.title, rec.name = claude_title_and_name(path)
+        entry = live.get(rec.id)
+        if entry:
+            rec.live = "yes"
+            rec.live_host = "cli"
+            rec.pid = entry["pid"]
+            rec.tmux = entry.get("tmux")
+            rec.live_basis = f"registry pid {entry['pid']} alive, start time matches"
+            rec.name = rec.name or entry.get("name")
+        else:
+            rec.live_basis = "no live registry entry"
+        if rec.live == "yes":
+            rec.resume_blocked = "running"
+        elif rec.spawn_dir:
+            rec.resume = f"{cd_prefix(rec.spawn_dir)}claude --resume {rec.id}"
+        else:
+            rec.resume_blocked = "no_workspace"
+        return rec
 
 
 @hookimpl

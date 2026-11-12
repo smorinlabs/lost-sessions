@@ -8,7 +8,7 @@ import sys
 import click
 
 from lost_sessions import __version__
-from lost_sessions.plugins import PluginManager, get_agent_tools, load_plugins, pm
+from lost_sessions.plugins import PluginManager, load_plugins, pm
 
 
 def build_cli(manager: PluginManager = pm) -> click.Group:
@@ -34,7 +34,9 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
         if ctx.invoked_subcommand is None:
             click.echo(ctx.get_help())
 
-    cli.add_command(_inventory_command(sorted(get_agent_tools(manager)), manager))
+    from lost_sessions.inventory import agent_tools
+
+    cli.add_command(_inventory_command(list(agent_tools(manager)), manager))
     manager.hook.register_commands(cli=cli)
     return cli
 

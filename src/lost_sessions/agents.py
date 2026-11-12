@@ -15,11 +15,14 @@ import subprocess  # nosec B404 - fixed argv lists, never a shell
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from lost_sessions.models import ScanResult
+from lost_sessions.models import ScanResult, Session
 
 TAIL_BYTES = 256 * 1024
+# What a single stored record can raise when its shape changed. Scanners catch
+# these per record and mark it unreadable; OSError still fails the whole store.
+RECORD_ERRORS = (ValidationError, TypeError, ValueError, AttributeError, KeyError)
 HEAD_LINES = 60
 
 
@@ -66,9 +69,19 @@ def iso_normalize(value: str | None) -> str | None:
     return parsed.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def data_home() -> Path:
+def data_home(home: Path) -> Path:
     xdg = os.environ.get("XDG_DATA_HOME")
-    return Path(xdg) if xdg else Path.home() / ".local" / "share"
+    return Path(xdg) if xdg else home / ".local" / "share"
+
+
+def unreadable_session(tool: str, sid: object, transcript: object = None) -> Session:
+    """The record for a session whose stored data does not fit the model.
+
+    A store that changed shape marks that session unreadable; it never stops
+    the scan (design 0006, Section 8.1 rule 8).
+    """
+    path = None if transcript is None else str(transcript)
+    return Session(tool=tool, id=str(sid), transcript=path, unreadable=True)
 
 
 def open_ro(db_path: Path) -> sqlite3.Connection:

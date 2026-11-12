@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import override
 
 from lost_sessions.agents import (
+    RECORD_ERRORS,
     AgentTool,
     ScanContext,
     SourceError,
@@ -18,6 +19,7 @@ from lost_sessions.agents import (
     iso_from_epoch,
     open_ro,
     runs_tool,
+    unreadable_session,
 )
 from lost_sessions.hookspecs import hookimpl
 from lost_sessions.models import Lineage, Live, ScanResult, Session, SourceStatus
@@ -77,7 +79,7 @@ class Muse(AgentTool):
 
     @override
     def scan(self, ctx: ScanContext) -> ScanResult:
-        db_path = data_home() / "muse" / "session-index.db"
+        db_path = data_home(ctx.home) / "muse" / "session-index.db"
         if not db_path.is_file():
             return ScanResult(
                 sessions=[], source=SourceStatus(status="absent", path=str(db_path))
@@ -93,39 +95,46 @@ class Muse(AgentTool):
             raise SourceError(f"muse: {db_path}: {exc}") from exc
         names = muse_names(ctx.home)
         records = []
-        for sid, sdir, log, ws, branch, title, name, created, updated, fork in rows:
-            name = names.get(sid) or name
-            rec = Session(
-                tool="muse",
-                id=sid,
-                spawn_dir=ws or None,
-                branch=branch,
-                title=title,
-                name=name,
-                name_resumable=name is not None,
-                transcript=log,
-                export_command=f"muse export --session {sid}",
-                created=iso_from_epoch(created / 1e6) if created else None,
-                updated=iso_from_epoch(updated / 1e6) if updated else None,
-            )
-            if fork:
-                rec.lineage = Lineage(kind="fork", parent_id=fork)
-            rec.live, rec.live_basis, rec.pid = muse_liveness(sdir, ctx.processes)
-            rec.live_host = "cli" if rec.live == "yes" else None
-            if rec.live == "yes":
-                rec.resume_blocked = "running"
-            elif not rec.spawn_dir:
-                rec.resume_blocked = "no_workspace"
-            else:
-                rec.resume = f"{cd_prefix(ws)}muse resume {sid}"
-                if name:
-                    rec.resume_by_name = (
-                        f"{cd_prefix(ws)}muse resume {shlex.quote(name)}"
-                    )
-            records.append(rec)
+        for row in rows:
+            try:
+                records.append(self._record(row, names, ctx.processes))
+            except RECORD_ERRORS:
+                records.append(unreadable_session("muse", row[0], row[2]))
         return ScanResult(
             sessions=records, source=SourceStatus(status="ok", path=str(db_path))
         )
+
+    def _record(
+        self, row: tuple, names: dict[str, str], procs: dict[int, list[str]]
+    ) -> Session:
+        sid, sdir, log, ws, branch, title, name, created, updated, fork = row
+        name = names.get(sid) or name
+        rec = Session(
+            tool="muse",
+            id=sid,
+            spawn_dir=ws or None,
+            branch=branch,
+            title=title,
+            name=name,
+            name_resumable=name is not None,
+            transcript=log,
+            export_command=f"muse export --session {sid}",
+            created=iso_from_epoch(created / 1e6) if created else None,
+            updated=iso_from_epoch(updated / 1e6) if updated else None,
+        )
+        if fork:
+            rec.lineage = Lineage(kind="fork", parent_id=fork)
+        rec.live, rec.live_basis, rec.pid = muse_liveness(sdir, procs)
+        rec.live_host = "cli" if rec.live == "yes" else None
+        if rec.live == "yes":
+            rec.resume_blocked = "running"
+        elif not rec.spawn_dir:
+            rec.resume_blocked = "no_workspace"
+        else:
+            rec.resume = f"{cd_prefix(ws)}muse resume {sid}"
+            if name:
+                rec.resume_by_name = f"{cd_prefix(ws)}muse resume {shlex.quote(name)}"
+        return rec
 
 
 @hookimpl
