@@ -159,6 +159,9 @@ class SessionManager(ABC):
     # Whether restored_ids() can be non-empty: the manager reopens sessions by
     # itself after a reboot, so `list` reports sessions "not in" it.
     restores: bool = False
+    # Whether the manager opens sessions: implements destinations() and plan().
+    # Only these get an `open --<name>` flag and a `workspaces` section.
+    can_open: bool = False
     open_help: str = ""  # help for `open --<name>`
     # ("workspace", "workspaces"): what one destination is called in messages
     destination_noun: tuple[str, str] = ("destination", "destinations")
@@ -215,7 +218,11 @@ class SessionManager(ABC):
 
     def workspaces_lines(self, dests: Destinations) -> list[str]:
         """The `workspaces` section for this manager, heading first."""
-        return []
+        noun = self.destination_noun[1]
+        lines = [f"{self.display_name} {noun} (REF@LABEL with --{self.name}):"]
+        for i, d in enumerate(dests.choices()):
+            lines.append(f"  {dests.describe(d)}" + ("   (default)" if i == 0 else ""))
+        return lines
 
     def unreachable(self) -> str:
         return f"could not reach {self.display_name}"

@@ -250,7 +250,7 @@ def _managers(manager: PluginManager) -> dict[str, SessionManager]:
     from lost_sessions.core import session_managers
 
     load_plugins(manager)
-    return session_managers(manager)
+    return {name: m for name, m in session_managers(manager).items() if m.can_open}
 
 
 def _open_command(manager: PluginManager) -> click.Command:
@@ -329,8 +329,7 @@ def _open_command(manager: PluginManager) -> click.Command:
                 )
         dests = None
         if mgr is not None:
-            all_dests = {name: m.destinations(options) for name, m in managers.items()}
-            dests = all_dests[action]
+            dests = mgr.destinations(options)
             _, plural = mgr.destination_noun
             for label in dict.fromkeys(w or dests.default_label for w in wanted):
                 ids = dests.ambiguous(label)

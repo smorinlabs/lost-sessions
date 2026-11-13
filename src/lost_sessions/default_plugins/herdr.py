@@ -160,6 +160,7 @@ class Herdr(SessionManager):
     name = "herdr"
     display_name = "Herdr"
     restores = True
+    can_open = True
     open_help = "open in a Herdr workspace"
     destination_noun = ("workspace", "workspaces")
 
@@ -289,7 +290,12 @@ class Herdr(SessionManager):
         pane = result.get("root_pane")
         if not isinstance(pane, dict):
             return None
-        fills["{pane}"], fills["{tab}"] = pane.get("pane_id"), pane.get("tab_id")
+        pane_id, tab_id = pane.get("pane_id"), pane.get("tab_id")
+        if not (
+            isinstance(pane_id, str) and pane_id and isinstance(tab_id, str) and tab_id
+        ):
+            return None  # an opening step then fails: nothing opened we can address
+        fills["{pane}"], fills["{tab}"] = pane_id, tab_id
         dest.id = dest.id or pane.get("workspace_id")
         return {
             "herdr_workspace": dest.id,

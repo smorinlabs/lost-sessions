@@ -121,6 +121,7 @@ class RexDestinations(Destinations):
 class Rex(SessionManager):
     name = "rex"
     display_name = "Rex"
+    can_open = True
     open_help = "open in a new window in a Rex session"
     destination_noun = ("session", "sessions")
 
@@ -190,7 +191,8 @@ class Rex(SessionManager):
                     "-c",
                     p.cwd,
                     *cmd,
-                ]
+                ],
+                opens=True,  # no window ID back means nothing opened (a deliberate fix)
             ),
             Step(
                 argv=["rex", "window", "rename", *scope, "{window}", p.label],
@@ -207,9 +209,13 @@ class Rex(SessionManager):
         fills: dict[str, str],
     ) -> dict[str, Any] | None:
         if result.get("session_id"):  # rex session new: the first window comes with it
-            dest.id = result["session_id"]
-            first = (result.get("initial_windows") or [{}])[0]
-            return {"rex_session": dest.id, "rex_window": first.get("window_id")}
+            dest.id = result["session_id"]  # the session exists; later rows reuse it
+            windows = result.get("initial_windows")
+            first = windows[0] if isinstance(windows, list) and windows else {}
+            window = first.get("window_id") if isinstance(first, dict) else None
+            if not isinstance(window, str) or not window:
+                return None
+            return {"rex_session": dest.id, "rex_window": window}
         if result.get("window_id"):
             fills["{window}"] = result["window_id"]
             return ({"rex_session": dest.id} if dest.id else {}) | {

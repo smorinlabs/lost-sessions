@@ -774,3 +774,95 @@ def test_exactly_one_way_to_open(fakes):
     assert code == 2 and "--print" in err and "--herdr" in err and "--rex" in err
     code, _, _ = run("open", CLAUDE_ID, "--print", "--rex", *SINCE)
     assert code == 2
+
+
+# --- review fixes (PR #13) --------------------------------------------------------------
+
+
+class RestoreOnly:
+    __name__ = "RestoreOnly"
+
+    @staticmethod
+    def manager():
+        from lost_sessions.managers import SessionManager
+
+        class Keeper(SessionManager):
+            name = "keeper"
+            display_name = "Keeper"
+            restores = True
+
+        return Keeper()
+
+
+@pytest.fixture
+def restore_only_plugin(fakes):
+    from lost_sessions.hookspecs import hookimpl
+    from lost_sessions.plugins import pm
+
+    class Plugin:
+        __name__ = "KeeperPlugin"
+
+        @hookimpl
+        def register_session_managers(self, register):
+            register(RestoreOnly.manager())
+
+    pm.register(Plugin(), name="undo-KeeperPlugin")
+    try:
+        yield
+    finally:
+        pm.unregister(name="undo-KeeperPlugin")
+
+
+def test_a_restore_only_manager_does_not_break_open_or_workspaces(
+    restore_only_plugin, fakes
+):
+    code, _, _ = run("open", CLAUDE_ID, "--herdr", *SINCE)
+    assert code == 0
+    code, out, _ = run("workspaces")
+    assert code == 0 and "Herdr workspaces" in out and "Rex sessions" in out
+    code, _, _ = run("open", CLAUDE_ID, "--keeper", *SINCE)
+    assert code == 2  # a manager that cannot open gets no --keeper flag
+
+
+def test_rex_run_without_a_window_id_is_failed(fakes):
+    write_exe(fakes["bin"] / "rex", "#!/bin/sh\necho '{}'\n")
+    entry = execute(rows(fakes)[CLAUDE_ID], "rex", rex_dest("other", "session:other"))
+    assert entry.result == "failed"
+    assert "nothing opened" in entry.note
+
+
+def test_rex_session_without_a_first_window_is_failed(fakes):
+    write_exe(
+        fakes["bin"] / "rex",
+        '#!/bin/sh\necho \'{"session_id": "session:s", "initial_windows": []}\'\n',
+    )
+    target = rex_dest()
+    entry = execute(rows(fakes)[CLAUDE_ID], "rex", target)
+    assert entry.result == "failed"
+    assert target.id == "session:s"  # the session exists; later rows reuse it
+
+
+def test_non_string_herdr_ids_are_failed_not_a_crash(fakes):
+    write_exe(
+        fakes["bin"] / "herdr",
+        '#!/bin/sh\necho \'{"result": {"root_pane": {"pane_id": 7, "tab_id": 8, "workspace_id": "wN"}}}\'\n',
+    )
+    entry = execute(rows(fakes)[CLAUDE_ID], "herdr", herdr_dest())
+    assert entry.result == "failed"
+
+
+def test_an_opening_manager_without_its_own_section_gets_a_generic_one():
+    from lost_sessions.managers import Destination, Destinations, SessionManager
+
+    class Plain(SessionManager):
+        name, display_name, can_open = "plain", "Plain", True
+
+    class PlainDests(Destinations):
+        def get(self, label):
+            return Destination(manager="plain", label=label)
+
+    lines = Plain().workspaces_lines(PlainDests("recovered", True))
+    assert lines == [
+        "Plain destinations (REF@LABEL with --plain):",
+        "  recovered (new)   (default)",
+    ]
