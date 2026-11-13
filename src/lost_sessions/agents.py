@@ -93,9 +93,13 @@ def cd_prefix(directory: str | None) -> str:
 
 
 def processes() -> dict[int, list[str]]:
-    """pid -> argv tokens for every process (one ps call)."""
+    """pid -> argv tokens for every process (one ps call).
+
+    `-ww`: unlimited width. Without it procps `ps` (Linux) cuts each line at 80
+    columns when stdout is not a terminal, losing trailing arguments.
+    """
     out = subprocess.run(  # nosec B603 B607 - fixed argv, no shell
-        ["ps", "-axo", "pid=,command="],  # noqa: S607
+        ["ps", "-axww", "-o", "pid=,command="],  # noqa: S607
         capture_output=True,
         text=True,
         check=False,

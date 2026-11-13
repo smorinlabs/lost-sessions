@@ -1133,3 +1133,12 @@ def test_missing_process_table_fails_only_the_agents_that_need_it(
     assert inv.sources["claude"].status == "ok"
     assert {s.tool for s in inv.sessions} == {"claude"}
     assert "process table" in inv.sources["muse"].message
+
+
+def test_long_command_lines_are_read_in_full(home, world, procs):
+    # procps `ps` cuts output at 80 columns when stdout is not a terminal unless
+    # given -ww; the session id after a long argument list must still be seen.
+    ids = world["opencode"]
+    padding = ["--log-level", "x" * 200]
+    procs([str(fake_tool(home / "bin", "opencode")), *padding, "--session", ids["top"]])
+    assert by_id(inventory(home, "--tool", "opencode"))[ids["top"]]["live"] == "yes"
