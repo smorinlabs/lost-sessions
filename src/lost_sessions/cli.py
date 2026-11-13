@@ -40,7 +40,7 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
     from lost_sessions.inventory import agent_tools
 
     cli.add_command(_inventory_command(list(agent_tools(manager)), manager))
-    for command in (_list_command(), _open_command(), _history_command()):
+    for command in (_list_command(manager), _open_command(manager), _history_command()):
         cli.add_command(command)
     manager.hook.register_commands(cli=cli)
     return cli
@@ -179,7 +179,7 @@ def _check_exclusive(show_all: bool, hide_running: bool) -> None:
         sys.exit(2)
 
 
-def _list_command() -> click.Command:
+def _list_command(manager: PluginManager) -> click.Command:
     @click.command(name="list", help="numbered list of dropped sessions")
     @_window_options
     def list_(
@@ -188,7 +188,7 @@ def _list_command() -> click.Command:
         from lost_sessions import core, history
 
         _check_exclusive(show_all, hide_running)
-        window = core.load_rows(since)
+        window = core.load_rows(since, manager)
         rows = window.rows
         shown = core.visible(rows, show_all=show_all, include_helpers=include_helpers)
         shorts = core.short_ids(rows)
@@ -199,7 +199,7 @@ def _list_command() -> click.Command:
             and not core.is_helper(r.session)
             and r.session.live != "yes"
         ]
-        not_in = " or ".join(core.restoring_managers()) or "a session manager"
+        not_in = " or ".join(core.restoring_managers(manager)) or "a session manager"
         boot, start = window.boot, window.start
         print(
             f"Boot: {boot:%a %b %d %H:%M}   sessions started before it and active "
@@ -228,13 +228,13 @@ def _list_command() -> click.Command:
             print(f"     about: {core.about(s)}")
             print(f"     id:    {s.id}")
             print(f"     dir:   {s.spawn_dir}")
-            print(f"     open:  {core.resume_command(s)}\n")
+            print(f"     open:  {core.resume_command(s, manager)}\n")
         history.save_listing(shown, start)
 
     return list_
 
 
-def _open_command() -> click.Command:
+def _open_command(manager: PluginManager) -> click.Command:
     @click.command(
         name="open",
         help=(
@@ -271,7 +271,7 @@ def _open_command() -> click.Command:
         numeric = any(re.fullmatch(r"\d{1,4}", r) for r in names)
         if not since and numeric and listing:
             since = listing.since
-        window = core.load_rows(since)
+        window = core.load_rows(since, manager)
         picked, problems = core.resolve_refs(names, window.rows, listing)
         for p in problems:
             core.error(p)
@@ -288,7 +288,7 @@ def _open_command() -> click.Command:
         entries = []
         for r in picked:
             core.info(f"#{r.n} → {r.session.id}  {core.about(r.session)}")
-            entry = core.execute_print(r)
+            entry = core.execute_print(r, manager)
             history.append_log(entry)
             core.success(f"print #{r.n} {entry.result}; logged to {history.log_path()}")
             print(history.format_entry(entry))

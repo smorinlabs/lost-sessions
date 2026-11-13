@@ -733,3 +733,68 @@ def test_wrong_typed_known_fields_still_show(cli_env):
     code, out, _ = run("history")
     assert code == 0
     assert "cmd:   one" in out and "value=3" in out
+
+
+# --- review fixes (PR #12) ------------------------------------------------------------
+
+
+def test_commands_use_the_manager_given_to_build_cli(cli_env, monkeypatch):
+    from lost_sessions.plugins import make_plugin_manager
+
+    isolated = make_plugin_manager()
+    load_plugins(isolated)
+    isolated.register(FakeAgentPlugin(cli_env["agent"]), name="isolated-fake")
+    pm.unregister(name="undo-FakeAgentPlugin")  # the global registry no longer has it
+    try:
+        result = CliRunner().invoke(build_cli(isolated), ["list", *SINCE])
+    finally:
+        pm.register(FakeAgentPlugin(cli_env["agent"]), name="undo-FakeAgentPlugin")
+    assert result.exit_code == 0
+    assert CLAUDE_ID in result.stdout
+
+
+@pytest.mark.parametrize("saved", ["not-a-date", "2026-11-11T10:00:00"])
+def test_listing_with_a_bad_saved_time_asks_for_a_fresh_list(cli_env, saved):
+    run("list", *SINCE)
+    data = json.loads(history.listing_path().read_text())
+    data["saved"] = saved
+    history.listing_path().write_text(json.dumps(data))
+    code, _, err = run("open", "1", "--print")
+    assert code == 2
+    assert "lost-sessions list" in err
+
+
+def test_listing_with_a_stray_schema_key_still_loads(cli_env):
+    run("list", *SINCE)
+    data = json.loads(history.listing_path().read_text())
+    data["schema_"] = "x"
+    history.listing_path().write_text(json.dumps(data))
+    assert history.load_listing() is not None
+    assert run("open", CLAUDE_ID, "--print", *SINCE)[0] == 0
+
+
+@pytest.mark.parametrize(
+    "layout",
+    [
+        {"workspaces": None},
+        {"workspaces": [None]},
+        {"workspaces": [{"tabs": [{"panes": []}]}]},
+    ],
+)
+def test_misshapen_herdr_layouts_are_unreadable_not_fatal(herdr_dir, layout):
+    (herdr_dir / "session.json").write_text(json.dumps(layout))
+    assert herdr_index(herdr_dir, BOOT) == {}
+
+
+def test_invalid_utf8_in_history_is_one_unreadable_line(cli_env):
+    history.log_path().parent.mkdir(parents=True, exist_ok=True)
+    history.log_path().write_bytes(
+        json.dumps(SCHEMA_0).encode()
+        + b"\n\xff\xfe broken\n"
+        + json.dumps(SCHEMA_0).encode()
+        + b"\n"
+    )
+    code, out, _ = run("history")
+    assert code == 0
+    assert "? (unreadable line 2)" in out
+    assert out.count("about: an old one") == 2

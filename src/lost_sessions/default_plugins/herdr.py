@@ -24,17 +24,20 @@ def _layout_ids(path: Path, prefix: str = "") -> dict[str, str]:
         return {}
     if not isinstance(data, dict):
         return {}
-    idx = {}
-    for ws in data.get("workspaces", []):
-        for tab in ws.get("tabs", []):
-            name = ws.get("custom_name") or ws.get("id")
-            where = f"{prefix}{name} / {tab.get('custom_name') or '-'}"
-            for pane in tab.get("panes", {}).values():
-                sid = (pane.get("agent_session") or {}).get("value")
-                if sid:
-                    idx[sid] = where
-                for token in (pane.get("agent_resume") or {}).get("argv", []):
-                    idx[token] = where
+    idx: dict[str, str] = {}
+    try:
+        for ws in data.get("workspaces", []):
+            for tab in ws.get("tabs", []):
+                name = ws.get("custom_name") or ws.get("id")
+                where = f"{prefix}{name} / {tab.get('custom_name') or '-'}"
+                for pane in tab.get("panes", {}).values():
+                    sid = (pane.get("agent_session") or {}).get("value")
+                    if sid:
+                        idx[sid] = where
+                    for token in (pane.get("agent_resume") or {}).get("argv", []):
+                        idx[token] = where
+    except (TypeError, AttributeError):  # a layout of another shape: unreadable
+        return {}
     return idx
 
 

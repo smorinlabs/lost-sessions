@@ -148,7 +148,9 @@ def _entry(raw: dict[str, Any]) -> HistoryEntry:
 
 def read_log() -> list[HistoryLine]:
     try:
-        lines = log_path().read_text().splitlines()
+        # Bytes: json.loads decodes each line, so one bad UTF-8 byte stays one
+        # unreadable line (UnicodeDecodeError is a ValueError).
+        lines = log_path().read_bytes().splitlines()
     except OSError:
         return []
     out = []
@@ -253,6 +255,14 @@ def load_listing() -> Listing | None:
     if not isinstance(schema, int) or schema > SCHEMA:
         return None
     try:
-        return Listing(**raw, schema_=schema)
+        listing = Listing.model_validate(raw | {"schema_": schema})
     except ValidationError:
         return None
+    if listing.saved is not None:
+        try:
+            saved = dt.datetime.fromisoformat(listing.saved)
+        except ValueError:
+            return None
+        if saved.tzinfo is None:  # cannot be compared with now: treat as unreadable
+            return None
+    return listing

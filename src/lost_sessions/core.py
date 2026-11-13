@@ -21,7 +21,7 @@ from lost_sessions.agents import AgentTool
 from lost_sessions.history import HistoryEntry, Listing
 from lost_sessions.managers import SessionManager
 from lost_sessions.models import Session
-from lost_sessions.plugins import get_session_managers, pm
+from lost_sessions.plugins import PluginManager, get_session_managers, pm
 
 # Matched as text against spawn_dir, never opened or created.
 HELPER_DIRS = ("/private/tmp/claude-", "/tmp/claude-")  # noqa: S108  # nosec B108
@@ -57,14 +57,14 @@ def info(msg: str) -> None:
 # --- plugins ----------------------------------------------------------------------
 
 
-def agent_tools() -> dict[str, AgentTool]:
+def agent_tools(manager: PluginManager = pm) -> dict[str, AgentTool]:
     from lost_sessions.inventory import agent_tools as registered
 
-    return registered(pm)
+    return registered(manager)
 
 
-def session_managers() -> dict[str, SessionManager]:
-    found = get_session_managers(pm)
+def session_managers(manager: PluginManager = pm) -> dict[str, SessionManager]:
+    found = get_session_managers(manager)
     return {
         name: m for name, m in sorted(found.items()) if isinstance(m, SessionManager)
     }
@@ -208,18 +208,18 @@ def state_label(s: Session) -> str:
     return ""
 
 
-def resume_args(s: Session) -> list[str]:
-    return agent_tools()[s.tool].resume_args(s)
+def resume_args(s: Session, manager: PluginManager = pm) -> list[str]:
+    return agent_tools(manager)[s.tool].resume_args(s)
 
 
-def resume_command(s: Session) -> str:
+def resume_command(s: Session, manager: PluginManager = pm) -> str:
     """The inventory's resume command, or one built from the ID when it withholds
     it (e.g. running)."""
     if s.resume:
         return s.resume
-    argv = shlex.join(resume_args(s))
+    argv = shlex.join(resume_args(s, manager))
     d = s.spawn_dir
-    in_dir = agent_tools()[s.tool].resume_in_dir
+    in_dir = agent_tools(manager)[s.tool].resume_in_dir
     return f"cd {shlex.quote(d)} && {argv}" if d and in_dir else argv
 
 
@@ -232,7 +232,7 @@ class Window(BaseModel):
     rows: list[Row]
 
 
-def load_rows(since: str | None) -> Window:
+def load_rows(since: str | None, manager: PluginManager = pm) -> Window:
     """Exits 2 on a bad --since."""
     from lost_sessions.inventory import collect, select
 
@@ -245,7 +245,7 @@ def load_rows(since: str | None) -> Window:
             "or <n>m|h|d|w (e.g. 3d)"
         )
         sys.exit(2)
-    inv = collect()
+    inv = collect(manager=manager)
     if inv.failed:  # partial failure: one store unreadable, the others still listed
         for tool in inv.failed:
             warn(f"could not read {tool}: {inv.sources[tool].message}")
@@ -253,17 +253,17 @@ def load_rows(since: str | None) -> Window:
     since_utc = start.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     rows = select_rows(select(inv, since=since_utc), boot, start)
     restored: dict[str, tuple[str, str]] = {}
-    for manager in session_managers().values():
-        for sid, label in manager.restored_ids(boot).items():
-            restored.setdefault(sid, (manager.display_name, label))
+    for mgr in session_managers(manager).values():
+        for sid, label in mgr.restored_ids(boot).items():
+            restored.setdefault(sid, (mgr.display_name, label))
     for r in rows:
         r.session.restored_by = restored.get(r.session.id)
     return Window(boot=boot, start=start, rows=rows)
 
 
-def restoring_managers() -> list[str]:
+def restoring_managers(manager: PluginManager = pm) -> list[str]:
     """Display names of the managers that restore sessions by themselves."""
-    return [m.display_name for m in session_managers().values() if m.restores]
+    return [m.display_name for m in session_managers(manager).values() if m.restores]
 
 
 def visible(rows: Sequence[Row], *, show_all: bool, include_helpers: bool) -> list[Row]:
@@ -314,7 +314,7 @@ def resolve_refs(
 # --- the Print action -----------------------------------------------------------
 
 
-def execute_print(r: Row) -> HistoryEntry:
+def execute_print(r: Row, manager: PluginManager = pm) -> HistoryEntry:
     """The Print action: show the resume command; runs nothing."""
     s = r.session
     entry = HistoryEntry.new(
@@ -323,7 +323,7 @@ def execute_print(r: Row) -> HistoryEntry:
         id=s.id,
         about=about(s),
         dir=s.spawn_dir,
-        commands=[resume_command(s)],
+        commands=[resume_command(s, manager)],
     )
     if folder_missing(s):
         entry.note = f"its folder no longer exists: {s.spawn_dir}"
