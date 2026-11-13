@@ -13,10 +13,11 @@ package uses.
 ## Install
 
 ```bash
-uv tool install "lost-sessions @ git+https://github.com/smorinlabs/lost-sessions@v0.1.0"
+uv tool install "lost-sessions @ git+https://github.com/smorinlabs/lost-sessions"
 ```
 
-Python 3.13 or later. macOS and Linux.
+This installs the latest `main`. Python 3.13 or later. macOS and Linux. Tagged
+releases, and a PyPI package, follow once publishing is set up.
 
 ## Use
 
