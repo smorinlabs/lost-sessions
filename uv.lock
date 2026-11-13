@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -734,7 +734,6 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "syrupy" },
-    { name = "template-press" },
     { name = "twine" },
     { name = "ty" },
     { name = "types-pygments" },
@@ -776,7 +775,6 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.6" },
     { name = "ruff", specifier = ">=0.1.0" },
     { name = "syrupy", specifier = ">=4.8.0" },
-    { name = "template-press", specifier = "==4.1.0" },
     { name = "twine", specifier = ">=6.1.0" },
     { name = "ty", specifier = ">=0.0.1a16" },
     { name = "types-pygments" },
@@ -1648,15 +1646,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/74/2c/8ffc1414d1951895d0d5b7dc83c0b079ebc48c3bf27ffbb0064646367500/syrupy-6.1.1.tar.gz", hash = "sha256:7e584a8df4ede6dd3c1c44a77f9edc46186b6767a73dea6f0083044946839a59", size = 109705, upload-time = "2026-09-13T20:25:21.599Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/b5/bf2a8a335a6a813869dd482cedbcde252f582b5afbfe50eb78ec09962800/syrupy-6.1.1-py3-none-any.whl", hash = "sha256:6ac9ac6a42d70ae44156f5f157a9563b9bb8cc96dcf9364327f330463bff889a", size = 63436, upload-time = "2026-09-13T20:25:20.294Z" },
-]
-
-[[package]]
-name = "template-press"
-version = "4.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f9/53/0f63e3eee06f09616192c49117cc901ab73b4398fb958f7bb5502f2e22ed/template_press-4.1.0.tar.gz", hash = "sha256:eb46e4115c369048e9afb68f107f5a4851c3822b578d3e78003261aba5ef0e84", size = 192893, upload-time = "2026-09-10T23:45:03.704Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/de/225b53ed543eaf0f17a9571232e5f233b058026e640ce8c9ad081610a792/template_press-4.1.0-py3-none-any.whl", hash = "sha256:cff924822d685811937708ca58a77b0301263b5f6d6aed6873445827b8221c62", size = 209068, upload-time = "2026-09-10T23:45:02.373Z" },
 ]
 
 [[package]]

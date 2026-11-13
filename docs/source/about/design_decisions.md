@@ -420,7 +420,7 @@ the blast radius if a workflow or action is compromised.
 
 ### GitHub Actions as the CI platform
 **What** — all automation runs in `.github/workflows/` — test/lint/typecheck,
-security, contract, release, publish, and press-verify workflows.
+security, contract, release, and publish workflows.
 **Why** — native to GitHub, no external service to configure, first-class OIDC
 support for keyless publishing.
 **Value** — zero-setup CI that adopters inherit working.
@@ -703,17 +703,6 @@ blueprint stops maintaining rebrand machinery in-tree.
 receipt-carrying project.
 **Refs** — `press/press-rules.toml`, `docs/POST_INIT.md`, the
 template-press CLI reference.
-
-### Press-verify drift guard
-**What** — any added/renamed file containing an identity value must press
-cleanly; `press verify` (hermetic self-press + leak scan) enforces it in CI
-(`press-verify.yml`), at pre-push (lefthook), and locally
-(`uv run --locked press verify`).
-**Why** — if a new identity-bearing file has no rewrite coverage or
-declared neutralization, a fork would ship half-renamed; the drift check
-makes that impossible to merge.
-**Value** — the rebrand stays complete as the template evolves.
-**Refs** — `.github/workflows/press-verify.yml`, AGENTS.md.
 
 ### Fork guard with a press receipt
 **What** — `scripts/guard.sh` warns (Tier-1) in un-rebranded clones and

@@ -7,7 +7,7 @@
 #                ITM-066 (ruff check + ruff format), taplo (ADR 0018)
 #   pre-push:    ITM-002 (gitleaks range scan), ITM-032 (bandit),
 #                HEX-30 (import-linter, ADR 0018),
-#                ty typecheck (ADR-03 / ADR 0018), init-system integrity
+#                ty typecheck (ADR-03 / ADR 0018)
 # Tiering: fast staged-scoped checks at pre-commit; slower full-tree checks
 # at pre-push. CI (.github/workflows/ci.yml + lint.yml) is the authority —
 # every correctness gate must also exist there.
@@ -176,9 +176,3 @@ pre-push:
     # via the dev group. Now also authoritatively gated in CI (ADR 0018).
     import-boundaries:
       run: uv run lint-imports
-    # Press drift guard (P06) — replaces the four init-integrity gates.
-    # `press verify` hermetically self-presses a sandbox copy and scans
-    # for surviving identity; runs in generated projects too (a pressed
-    # fork is itself a valid press target, so this IS its drift guard).
-    press-verify:
-      run: uv run --locked press verify

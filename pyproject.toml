@@ -71,7 +71,6 @@ dev = [
   "pytest-timeout>=2.3",   # WL-009 — per-test timeout guard (hung test fails loud)
   "pytest-randomly>=3.15", # WL-010 — randomized order surfaces inter-test coupling
   "hypothesis>=6.100",     # WL-013 — property-based tests at parse/serialize seams
-  "template-press==4.1.0",
 ]
 
 docs = [
@@ -89,9 +88,6 @@ docs = [
 
 [project.scripts]
 lost-sessions = "lost_sessions.cli:main"
-# Alias required by Template Press: its app_name must be a Python identifier
-# and a [project.scripts] key. Remove when press accepts hyphenated names.
-lost_sessions = "lost_sessions.cli:main"
 
 # ITM-072 — package metadata URLs (round 19).
 [project.urls]

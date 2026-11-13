@@ -151,8 +151,7 @@ scripts/setup-github-environments.sh <owner>/<repo>
 Under **Settings**:
 
 - [ ] **Branch protection** on `main`: require status checks anchored on the
-      aggregate gates — `ci-ok` (all of `ci.yml`), `press-verify` (the
-      rebrand drift guard), `commitlint (humans)`, plus the `lint.yml` job names
+      aggregate gates — `ci-ok` (all of `ci.yml`), `commitlint (humans)`, plus the `lint.yml` job names
       (`actionlint`, `bandit`, `codespell`, `editorconfig-check`, `yamllint`;
       safe to require — they report *skipped* rather than never reporting).
       Avoid listing individual `ci.yml` jobs: `ci-ok` subsumes them and its
@@ -267,7 +266,7 @@ you need (`gh secret set NAME -R <owner>/<repo>` prompts for the value).
       "required_status_checks": {
         "strict": false,
         "contexts": [
-          "ci-ok", "press-verify",
+          "ci-ok",
           "commitlint (humans)",
           "actionlint", "bandit", "codespell", "editorconfig-check", "yamllint"
         ]
@@ -320,7 +319,6 @@ After the bootstrap has formatted the generated tree, run:
 ```bash
 just setup
 just check
-uv run --locked press verify --target .
 uv build
 ```
 
