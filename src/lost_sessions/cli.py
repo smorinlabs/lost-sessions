@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import re
 import sys
+from typing import Literal
 
 import click
 
@@ -46,6 +47,9 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
         _open_command(manager),
         _workspaces_command(manager),
         _history_command(),
+        _plugins_command(manager),
+        _install_command("install"),
+        _install_command("uninstall"),
     ):
         cli.add_command(command)
     manager.hook.register_commands(cli=cli)
@@ -508,6 +512,52 @@ def _recover_command(manager: PluginManager) -> click.Command:
         params=params,
         help="interactive menu: choose Print or a session manager for each dropped session",
     )
+
+
+def _plugins_command(manager: PluginManager) -> click.Command:
+    @click.command(name="plugins", help="list installed plugins (JSON)")
+    @click.option(
+        "--all", "show_all", is_flag=True, help="include the built-in plugins"
+    )
+    @click.option(
+        "hooks",
+        "--hook",
+        multiple=True,
+        help="only plugins that implement this hook (repeatable)",
+    )
+    def plugins_(show_all: bool, hooks: tuple[str, ...]) -> None:
+        from lost_sessions.plugins import get_plugins
+
+        found = get_plugins(manager, all=show_all)
+        if hooks:
+            wanted = set(hooks)
+            found = [p for p in found if wanted.intersection(p.hooks)]
+        doc = [p.model_dump(exclude_none=True) for p in found]
+        print(json.dumps(doc, indent=2))
+
+    return plugins_
+
+
+def _install_command(action: Literal["install", "uninstall"]) -> click.Command:
+    help_text = {
+        "install": "add plugins: reinstall the uv tool with them (`uv tool install --with`)",
+        "uninstall": "remove plugins: reinstall the uv tool without them",
+    }[action]
+
+    @click.command(name=action, help=help_text)
+    @click.argument("packages", nargs=-1, required=True, metavar="PKG...")
+    @click.option(
+        "--print",
+        "print_only",
+        is_flag=True,
+        help="only print the uv and pip commands; run nothing",
+    )
+    def command(packages: tuple[str, ...], print_only: bool) -> None:
+        from lost_sessions import installer
+
+        sys.exit(installer.run(action, packages, print_only))
+
+    return command
 
 
 def _history_command() -> click.Command:
