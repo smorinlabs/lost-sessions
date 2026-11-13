@@ -55,25 +55,17 @@ Architecture and plugin contracts: `docs/design/0006-lost-sessions-plugin-design
 ## Verification flow before commit/PR
 
 1. `just setup` (idempotent — REQUIRED in fresh clones/containers so the
-   hooks in step 4 actually fire; also refreshes deps).
-2. `just check` (full pipeline must pass).
-3. Press conformance (the `press-verify` CI workflow enforces this). Rule:
-   any added/renamed file containing an identity value
-   (`lost_sessions`, `lost-sessions`, `lost_sessions`, `LOST_SESSIONS`,
-   author/owner names, "Lost Sessions") must press cleanly — either
-   the default rewrite covers it or `press/press-rules.toml` declares its
-   neutralization (`[[regenerate]]`, `[[reset]]`, `[[remove]]`, or a
-   reasoned exemption). Check locally:
-   - `uv run --locked press verify`
-4. Stage + commit. Lefthook fires automatically:
+   hooks in step 3 actually fire; also refreshes deps).
+2. `just check` (full pipeline must pass), plus `uv run ruff format --check .`:
+   CI's lint job formats the whole tree, including Python blocks in Markdown.
+3. Stage + commit. Lefthook fires automatically:
    - **commit-msg** → commitlint (Conventional Commits, lowercase subject).
    - **pre-commit** (fast, staged-scoped) → gitleaks + editorconfig-checker
      + yamllint + actionlint (workflows) + shellcheck (shell scripts) + codespell + ruff check/format
      + taplo (TOML) + `uv lock --check` (lockfile freshness) + large-files
      guard (1 MB).
    - **pre-push** (slower, full-tree) → gitleaks range scan + bandit + ty
-     typecheck + import-linter
-     + press verify (the hermetic self-press drift guard).
+     typecheck + import-linter.
 
    Hooks mirror CI; CI is the authority (ADR 0018). Boundaries (import-linter)
    are gated by the `import-boundaries` CI job, so a `--no-verify`
@@ -81,7 +73,7 @@ Architecture and plugin contracts: `docs/design/0006-lost-sessions-plugin-design
 
    If lefthook was not installed (step 1 skipped), the hooks are silent
    no-ops — do NOT push until you have either installed it or run the
-   step-3 checks manually.
+   checks above manually.
 
 ## Pull request review comments — MERGE GUARD (hard, enforced)
 

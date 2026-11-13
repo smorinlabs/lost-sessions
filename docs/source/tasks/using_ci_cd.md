@@ -25,7 +25,7 @@ Other test jobs validate runtime compatibility without uploading duplicate cover
 Python 3.13 remains the minimum supported version and default development interpreter.
 
 `.github/workflows/lint.yml` adds Actionlint, Bandit, spelling, EditorConfig
-and YAML checks. Other workflows handle press conformance, secret scanning,
+and YAML checks. Other workflows handle secret scanning,
 dependency review and CodeQL. Required check names come from
 GitHub branch protection and repository rules; keep those rules aligned when
 renaming or removing jobs.
@@ -37,7 +37,7 @@ Run these commands from the repository root:
 ```bash
 just setup
 just check
-uv run --locked press verify
+uv run ruff format --check .
 ```
 
 `just setup` installs the native tools, locked development dependencies and
