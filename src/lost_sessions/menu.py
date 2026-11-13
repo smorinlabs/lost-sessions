@@ -33,7 +33,10 @@ def make_menu(
     from textual.widgets import DataTable, Footer, OptionList, Static
 
     managers: dict[str, SessionManager] = {
-        m.name: m for m in core.menu_managers(manager) if m.name in dests
+        # A manager with no menu key cannot be chosen; leave it out, keep the menu
+        m.name: m
+        for m in core.menu_managers(manager)
+        if m.name in dests and m.menu_key
     }
     available = dict(available or {})
     ok = {name: available.get(name, True) for name in managers}

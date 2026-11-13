@@ -462,3 +462,26 @@ def test_recover_refuses_a_session_restored_while_the_menu_was_open(fakes, monke
     assert code == 1
     assert "already in Herdr" in err or "skipped" in err
     assert fakes["calls"]() == []
+
+
+def test_an_opening_manager_without_a_menu_key_is_left_out(fakes):
+    from lost_sessions.managers import Destination, Destinations, SessionManager
+
+    class Keyless(SessionManager):
+        name, display_name, can_open = "keyless", "Keyless", True
+
+    class KeylessDests(Destinations):
+        def get(self, label):
+            return Destination(manager="keyless", label=label)
+
+    d = dests() | {"keyless": KeylessDests("recovered", True)}
+    with mock.patch.object(
+        core, "menu_managers", return_value=[*core.menu_managers(), Keyless()]
+    ):
+        app = menu.make_menu(list(rows(fakes).values()), d)
+
+    async def body(pilot):
+        await pilot.press("r")
+        assert app.actions.get(CLAUDE_ID) == "rex"
+
+    drive(app, body)
