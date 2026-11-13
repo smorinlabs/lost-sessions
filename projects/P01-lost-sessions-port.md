@@ -24,13 +24,13 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 - [x] [P01-T03] Port the four scanners from `session-inventory` into agent plugins; add `inventory` (PR 2)
 - [x] [P01-TS04] Scanner tests ported from `tests/test_session_inventory.py` (TS-4)
 - [x] [P01-TS06] `inventory --json` matches `session-inventory list --json` on fixture stores (TS-6)
-- [~] [P01-T04] Port core, the Herdr and Rex plugins, and the click CLI (PR 3, in three parts)
+- [x] [P01-T04] Port core, the Herdr and Rex plugins, and the click CLI (PR 3, in three parts)
 - [x] [P01-T04a] Core window and labels, history and listing, `list`, `open --print`, `history` (PR 3a)
 - [x] [P01-T04b] Herdr and Rex managers: `open --rex/--herdr`, `workspaces`, `--focus` (PR 3b)
-- [ ] [P01-T04c] The `recover` menu (PR 3c)
-- [ ] [P01-TS03] Contract suite runs against every registered agent and manager (TS-3)
-- [ ] [P01-TS05] The 118 original tests port under the Section 8 contract (TS-5)
-- [~] [P01-TS10] Live test passes against real Herdr (TS-10): ported to `tests/test_live.py`; run pending Steve's go-ahead
+- [x] [P01-T04c] The `recover` menu (PR 3c)
+- [x] [P01-TS03] Contract suite runs against every registered agent and manager (TS-3)
+- [x] [P01-TS05] The 118 original tests port under the Section 8 contract (TS-5)
+- [x] [P01-TS10] Live test passes against real Herdr (TS-10): `tests/test_live.py`, run 2026-11-12 with Steve's go-ahead, passed
 - [x] [P01-TS11] Stored-data compatibility fixtures for history and listing (TS-11)
 - [ ] [P01-T05] Add `plugins`, `install`, `uninstall` (PR 4)
 - [ ] [P01-TS07] Wheel installs into a clean `uv tool` env; built-ins and a fake plugin are listed (TS-7)

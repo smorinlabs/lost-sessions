@@ -199,3 +199,42 @@ stub_file = "press/stubs/bootstrap-provenance.md"
 [[reset]]
 file = ".github/SECURITY.md"
 stub_file = "press/stubs/security.md"
+
+# `recover` prints "No lost sessions in this window": ordinary English that the
+# identity scan reads as the project name (Template Press feedback TP-16). The
+# text is runtime output kept from the original script, not identity.
+[[verify.ignore]]
+field = "package_name"
+file = "src/lost_sessions/cli.py"
+anchor = "No lost sessions in this window"
+reason = "runtime message, not the project identity"
+
+[[verify.ignore]]
+field = "repo_name"
+file = "src/lost_sessions/cli.py"
+anchor = "No lost sessions in this window"
+reason = "runtime message, not the project identity"
+
+[[verify.ignore]]
+field = "display_name"
+file = "src/lost_sessions/cli.py"
+anchor = "No lost sessions in this window"
+reason = "runtime message, not the project identity"
+
+[[verify.ignore]]
+field = "package_name"
+file = "tests/test_menu.py"
+anchor = "No lost sessions in this window"
+reason = "asserts the runtime message, not the project identity"
+
+[[verify.ignore]]
+field = "repo_name"
+file = "tests/test_menu.py"
+anchor = "No lost sessions in this window"
+reason = "asserts the runtime message, not the project identity"
+
+[[verify.ignore]]
+field = "display_name"
+file = "tests/test_menu.py"
+anchor = "No lost sessions in this window"
+reason = "asserts the runtime message, not the project identity"
