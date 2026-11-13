@@ -18,6 +18,8 @@ name: release-please
 on:
   push:
     branches: [main]
+  # Manual re-run, e.g. after the App secrets are first provisioned.
+  workflow_dispatch:
 
 permissions: {}
 
