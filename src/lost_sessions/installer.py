@@ -69,14 +69,18 @@ def source_of(dist: Any) -> Source:  # noqa: ANN401 - an importlib Distribution
         return Source(kind="index", spec=name)
     info = json.loads(raw)
     url = str(info.get("url", ""))
+    subdirectory = info.get("subdirectory")
+    fragment = f"#subdirectory={subdirectory}" if subdirectory else ""
     if (info.get("dir_info") or {}).get("editable"):
         return Source(kind="editable", spec=unquote(urlparse(url).path))
     vcs = info.get("vcs_info")
     if vcs:
         commit = vcs.get("commit_id") or vcs.get("requested_revision") or ""
         ref = f"@{commit}" if commit else ""
-        return Source(kind="vcs", spec=f"{name} @ {vcs.get('vcs', 'git')}+{url}{ref}")
-    return Source(kind="url", spec=f"{name} @ {url}")
+        return Source(
+            kind="vcs", spec=f"{name} @ {vcs.get('vcs', 'git')}+{url}{ref}{fragment}"
+        )
+    return Source(kind="url", spec=f"{name} @ {url}{fragment}")
 
 
 def with_args(dist: Any) -> list[str]:  # noqa: ANN401 - an importlib Distribution
@@ -91,6 +95,15 @@ def tool_args(dist: Any) -> list[str]:  # noqa: ANN401 - an importlib Distributi
     if source.kind == "editable":
         return ["--editable", source.spec]
     return [source.spec]
+
+
+def requested_name(spec: str) -> str | None:
+    """The normalized distribution name a requested PKG names, or None for a bare
+    path or URL (its name is only known after it is built)."""
+    if spec.startswith((".", "/", "~")) or "://" in spec.split(" @ ")[0]:
+        return None
+    match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", spec)
+    return normalized(match.group(0)) if match else None
 
 
 def in_uv_tool() -> bool:
@@ -112,7 +125,9 @@ def commands(
     plugins = installed_plugins()
     if action == "uninstall":
         drop = {normalized(p) for p in packages}
-        plugins = [d for d in plugins if normalized(name_of(d)) not in drop]
+    else:  # a requested version or source replaces the installed one
+        drop = {n for n in (requested_name(p) for p in packages) if n}
+    plugins = [d for d in plugins if normalized(name_of(d)) not in drop]
     try:
         tool = tool_args(metadata.distribution(TOOL))
     except metadata.PackageNotFoundError:

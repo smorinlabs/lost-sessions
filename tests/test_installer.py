@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import sys
 import types
 from unittest import mock
@@ -123,7 +124,10 @@ def test_install_print_shows_both_lines_and_which_applies(env, cli_env):
         "'lost-sessions-beta @ file:///w/beta-1.0-py3-none-any.whl' "
         "--with lost-sessions-gamma"
     ) in out
-    assert f"{sys.executable} -m pip install lost-sessions-gamma" in out
+    assert (
+        shlex.join([sys.executable, "-m", "pip", "install", "lost-sessions-gamma"])
+        in out
+    )
     assert "applies here: pip" in out
 
 
@@ -181,7 +185,10 @@ def test_uninstall_drops_the_plugin_from_the_uv_line(env, cli_env):
 def test_uninstall_print_shows_the_pip_uninstall_line(env, cli_env):
     code, out, _ = run("uninstall", "lost-sessions-alpha", "--print")
     assert code == 0
-    assert f"{sys.executable} -m pip uninstall lost-sessions-alpha" in out
+    assert (
+        shlex.join([sys.executable, "-m", "pip", "uninstall", "lost-sessions-alpha"])
+        in out
+    )
 
 
 def test_uninstall_of_a_plugin_that_is_not_installed_is_an_error(env, cli_env):
@@ -239,3 +246,29 @@ def test_plugins_hook_filter(cli_env):
     assert "lost_sessions.default_plugins.claude" not in names
     entry = next(p for p in json.loads(out) if p["name"].endswith(".herdr"))
     assert entry["hooks"] == ["register_session_managers"]
+
+
+def test_a_requested_package_replaces_the_installed_one_with_the_same_name(
+    env, cli_env
+):
+    code, out, _ = run("install", "lost-sessions-beta==2.0", "--print")
+    assert code == 0
+    line = next(x for x in out.splitlines() if x.startswith("uv:"))
+    assert "beta-1.0-py3-none-any.whl" not in line  # the old source is replaced
+    assert line.endswith("--with lost-sessions-alpha --with lost-sessions-beta==2.0")
+
+
+@pytest.mark.parametrize(
+    ("spec", "name"),
+    [
+        ("lost-sessions-x", "lost-sessions-x"),
+        ("lost_sessions.X==2.0rc1", "lost-sessions-x"),
+        ("lost-sessions-x[extra]>=1", "lost-sessions-x"),
+        ("lost-sessions-x @ file:///w/x.whl", "lost-sessions-x"),
+        ("./plugins/x", None),
+        ("/abs/x-1.0-py3-none-any.whl", None),
+        ("git+https://github.com/o/x", None),
+    ],
+)
+def test_requested_names(spec, name):
+    assert installer.requested_name(spec) == name
