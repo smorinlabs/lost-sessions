@@ -264,3 +264,22 @@ def test_inventory_tool_choices_come_from_loaded_agent_plugins(pm):
     finally:
         pm.unregister(name="undo-NameOnly")
     assert list(choices) == ["claude", "codex", "muse", "opencode"]
+
+
+def test_the_public_api_for_plugin_authors():
+    import lost_sessions
+
+    for name in (
+        "hookimpl",
+        "AgentTool",
+        "SessionManager",
+        "Session",
+        "ScanContext",
+        "ScanResult",
+        "SourceStatus",
+        "Destination",
+        "Destinations",
+        "Plan",
+        "Step",
+    ):
+        assert hasattr(lost_sessions, name), name

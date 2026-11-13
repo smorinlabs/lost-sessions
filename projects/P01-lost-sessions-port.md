@@ -11,6 +11,12 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 - The `smorin-bootstrap` change that installs this package (separate PR in that repo).
 - Muse review install (T8). Switching the skill's `session-inventory` to this library.
 
+**Decisions**
+- Q4.A (Steve, 2026-11-12): `smorin-bootstrap` installs from git by tag
+  (`uv tool install "lost-sessions @ git+https://github.com/smorinlabs/lost-sessions@<tag>"`),
+  not from PyPI. PyPI reservation and publishing setup run in a parallel session
+  (handoff `~/c/prompts/T6-output/handoff-pypi-publishing.md`).
+
 **References**
 - Design: `docs/design/0006-lost-sessions-plugin-design.md`
 - Research: `docs/research/0001-llm-plugin-pattern.md`
@@ -36,7 +42,7 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 - [x] [P01-TS07] Wheel installs into a clean `uv tool` env; built-ins and a fake plugin are listed (TS-7)
 - [x] [P01-TS08] `install --print` for `uv tool` and virtualenv; plugin survives `uv tool upgrade --reinstall` (TS-8)
 - [x] [P01-TS09] `uv-receipt.toml` detection signal still exists (TS-9)
-- [ ] [P01-T06] Plugin-author docs (PR 5)
+- [x] [P01-T06] Plugin-author docs (PR 5): `docs/source/reference/plugins.md`, README, public API exports
 - [ ] [P01-T07] `uninstall`: refuse (exit 1, naming it) when a kept plugin requires a removed one; today `uv` keeps the dependency and the command reports success. Deferred from PR #15 review.
 - [ ] Regression Test Status
 
