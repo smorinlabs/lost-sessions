@@ -246,3 +246,21 @@ def test_version_option(pm):
     result = CliRunner().invoke(build_cli(pm), ["--version"])
     assert result.exit_code == 0
     assert result.output.startswith("lost-sessions, version ")
+
+
+def test_inventory_tool_choices_come_from_loaded_agent_plugins(pm):
+    class NameOnly:
+        __name__ = "NameOnly"
+
+        @hookimpl
+        def register_agent_tools(self, register):
+            register(FakeTool("not-an-agent-tool"))
+
+    pm.register(NameOnly(), name="undo-NameOnly")
+    try:
+        choices = next(
+            p for p in build_cli(pm).commands["inventory"].params if p.name == "tool"
+        ).type.choices
+    finally:
+        pm.unregister(name="undo-NameOnly")
+    assert list(choices) == ["claude", "codex", "muse", "opencode"]

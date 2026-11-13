@@ -119,7 +119,7 @@ def run_create_pr(tmp_path):
 
     def run(*, repository="owner/repository", fail="", number="417"):
         # Execute only the checked-in workflow in an isolated temporary directory.
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [
                 "/bin/bash",
                 "-e",
@@ -519,7 +519,7 @@ def test_snapshot_model_guard_refuses_older_policies(tmp_path, model, refused):
     policy.parent.mkdir(parents=True)
     policy.write_text(json.dumps({"schema_version": 1, "model": model}))
     step = _step_named(GUARD)
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         ["/bin/bash", "-e", "-o", "pipefail", "-c", step["run"]],
         cwd=tmp_path,
         env={"PATH": os.environ["PATH"], **step["env"]},

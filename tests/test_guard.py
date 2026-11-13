@@ -31,14 +31,14 @@ def _repo(tmp_path: Path, origin: str | None = None) -> Path:
     repo = tmp_path / "clone"
     (repo / "scripts").mkdir(parents=True)
     shutil.copy2(GUARD, repo / "scripts" / "guard.sh")
-    subprocess.run(  # noqa: S603
-        ["git", "-C", str(repo), "init", "-q", "-b", "main"],  # noqa: S607
+    subprocess.run(
+        ["git", "-C", str(repo), "init", "-q", "-b", "main"],
         check=True,
         capture_output=True,
     )
     if origin is not None:
-        subprocess.run(  # noqa: S603
-            ["git", "-C", str(repo), "remote", "add", "origin", origin],  # noqa: S607
+        subprocess.run(
+            ["git", "-C", str(repo), "remote", "add", "origin", origin],
             check=True,
             capture_output=True,
         )
@@ -46,8 +46,8 @@ def _repo(tmp_path: Path, origin: str | None = None) -> Path:
 
 
 def _run(repo: Path, mode: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603
-        ["bash", str(repo / "scripts" / "guard.sh"), mode],  # noqa: S607
+    return subprocess.run(
+        ["bash", str(repo / "scripts" / "guard.sh"), mode],
         capture_output=True,
         text=True,
     )

@@ -18,12 +18,12 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 
 ### Tests & Tasks
 - [x] [P01-T01] Initialize the repo from py-launch-blueprint with Template Press (PR #7)
-- [~] [P01-T02] Remove the template's example CLI, web service and container; add the plugin skeleton (PR 1)
+- [x] [P01-T02] Remove the template's example CLI, web service and container; add the plugin skeleton (PR #8)
 - [x] [P01-TS01] Test mode blocks third-party entry points; built-ins still load (TS-1)
 - [x] [P01-TS02] Fake agent and manager plugins register and unregister through the hooks (TS-2)
-- [ ] [P01-T03] Port the four scanners from `session-inventory` into agent plugins; add `inventory` (PR 2)
-- [ ] [P01-TS04] Scanner tests ported from `tests/test_session_inventory.py` (TS-4)
-- [ ] [P01-TS06] `inventory --json` matches `session-inventory list --json` on fixture stores (TS-6)
+- [x] [P01-T03] Port the four scanners from `session-inventory` into agent plugins; add `inventory` (PR 2)
+- [x] [P01-TS04] Scanner tests ported from `tests/test_session_inventory.py` (TS-4)
+- [x] [P01-TS06] `inventory --json` matches `session-inventory list --json` on fixture stores (TS-6)
 - [ ] [P01-T04] Port core, the Herdr and Rex plugins, and the click CLI (PR 3)
 - [ ] [P01-TS03] Contract suite runs against every registered agent and manager (TS-3)
 - [ ] [P01-TS05] The 118 original tests port under the Section 8 contract (TS-5)

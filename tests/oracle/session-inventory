@@ -1,0 +1,552 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""session-inventory — read-only inventory of agent sessions on this machine.
+
+Covers Claude Code, Codex, Muse, and OpenCode. Small-CLI (verb-first) per the
+CLI Design Standard v1.4.14; see docs/session-inventory-cli.md in the session
+plugin for the interface spec. Stdlib only. Never writes to any store.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import shlex
+import signal
+import socket
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "0.1.0"
+TOOLS = ("claude", "codex", "muse", "opencode")
+TAIL_BYTES = 256 * 1024
+HEAD_LINES = 60
+CODEX_HIDDEN_SOURCES = {"subagent", "guardian_review"}
+
+
+class SourceError(Exception):
+    """A whole store exists but could not be read."""
+
+
+# --- helpers ------------------------------------------------------------------
+
+def iso_from_epoch(seconds: float | None) -> str | None:
+    if seconds is None:
+        return None
+    return dt.datetime.fromtimestamp(seconds, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def iso_normalize(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def data_home() -> Path:
+    xdg = os.environ.get("XDG_DATA_HOME")
+    return Path(xdg) if xdg else Path.home() / ".local" / "share"
+
+
+def open_ro(db_path: Path) -> sqlite3.Connection:
+    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+
+
+def cd_prefix(directory: str | None) -> str:
+    return f"cd {shlex.quote(directory)} && " if directory else ""
+
+
+def new_record(tool: str, sid: str) -> dict:
+    return {
+        "tool": tool, "id": sid, "name": None, "name_resumable": False, "title": None,
+        "spawn_dir": None, "branch": None, "created": None, "updated": None,
+        "transcript": None, "lineage": None, "archived": False, "unreadable": False,
+        "live": "no", "live_basis": None, "live_host": None, "pid": None, "tmux": None,
+        "resume": None, "resume_by_name": None, "resume_blocked": None, "export_command": None,
+    }
+
+
+def processes() -> dict[int, list[str]]:
+    """pid -> argv tokens for every process (one ps call)."""
+    out = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True).stdout
+    table = {}
+    for line in out.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2 and parts[0].isdigit():
+            table[int(parts[0])] = parts[1].split()
+    return table
+
+
+def runs_tool(argv: list[str], tool: str) -> bool:
+    """The process is `tool` itself (or its versioned binary, e.g. muse-bin-1.3.0-R3401.1),
+    or an interpreter running a script with that name."""
+    pattern = re.compile(rf"{re.escape(tool)}(-bin[-.\w]*)?")
+    return any(pattern.fullmatch(Path(tok).name) for tok in argv[:2])
+
+
+def utc_lstart(pid: int) -> str | None:
+    out = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True,
+                         text=True, env={**os.environ, "TZ": "UTC"}).stdout
+    return " ".join(out.split()) or None
+
+
+def process_cwd(pid: int) -> str | None:
+    out = subprocess.run(["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
+                         capture_output=True, text=True).stdout
+    return next((line[1:] for line in out.splitlines() if line.startswith("n")), None)
+
+
+# --- Claude Code --------------------------------------------------------------
+
+def claude_registry(home: Path) -> dict[str, dict]:
+    """sessionId -> live-registry entry, for entries whose process is really alive."""
+    live = {}
+    reg = home / ".claude" / "sessions"
+    for entry_path in sorted(reg.glob("*.json")) if reg.is_dir() else []:
+        try:
+            entry = json.loads(entry_path.read_text())
+            pid, sid = int(entry["pid"]), entry["sessionId"]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        started = utc_lstart(pid)
+        recorded = " ".join(str(entry.get("procStart", "")).split())
+        if started and started == recorded:
+            live[sid] = entry
+    return live
+
+
+def claude_title_and_name(path: Path) -> tuple[str | None, str | None]:
+    size = path.stat().st_size
+    with path.open("rb") as fh:
+        fh.seek(max(0, size - TAIL_BYTES))
+        tail = fh.read().decode("utf-8", "replace").splitlines()
+    title = name = None
+    for line in reversed(tail):
+        if title is None and '"ai-title"' in line:
+            title = _field(line, "aiTitle")
+        if name is None and '"custom-title"' in line:
+            name = _field(line, "customTitle")
+        if title and name:
+            break
+    return title, name
+
+
+def _field(line: str, key: str) -> str | None:
+    try:
+        return json.loads(line).get(key)
+    except (ValueError, AttributeError):
+        return None
+
+
+def scan_claude(home: Path) -> tuple[list[dict], dict]:
+    root = home / ".claude" / "projects"
+    if not root.is_dir():
+        return [], {"status": "absent", "path": str(root)}
+    live = claude_registry(home)
+    records = []
+    for path in sorted(root.glob("*/*.jsonl")):
+        rec = new_record("claude", path.stem)
+        rec["transcript"] = str(path)
+        rec["updated"] = iso_from_epoch(path.stat().st_mtime)
+        parsed_any = False
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            for _, line in zip(range(HEAD_LINES), fh):
+                try:
+                    obj = json.loads(line)
+                except ValueError:
+                    continue
+                parsed_any = True
+                if obj.get("cwd") and not rec["spawn_dir"]:
+                    rec["spawn_dir"] = obj["cwd"]
+                    rec["branch"] = obj.get("gitBranch")
+                if obj.get("timestamp") and not rec["created"]:
+                    rec["created"] = iso_normalize(obj["timestamp"])
+                if rec["spawn_dir"] and rec["created"]:
+                    break
+        if not parsed_any:
+            rec["unreadable"] = True
+            records.append(rec)
+            continue
+        rec["title"], rec["name"] = claude_title_and_name(path)
+        entry = live.get(rec["id"])
+        if entry:
+            rec.update(live="yes", live_host="cli", pid=entry["pid"], tmux=entry.get("tmux"),
+                       live_basis=f"registry pid {entry['pid']} alive, start time matches")
+            rec["name"] = rec["name"] or entry.get("name")
+        else:
+            rec["live_basis"] = "no live registry entry"
+        if rec["live"] == "yes":
+            rec["resume_blocked"] = "running"
+        elif rec["spawn_dir"]:
+            rec["resume"] = f"{cd_prefix(rec['spawn_dir'])}claude --resume {rec['id']}"
+        else:
+            rec["resume_blocked"] = "no_workspace"
+        records.append(rec)
+    return records, {"status": "ok", "path": str(root)}
+
+
+# --- Codex --------------------------------------------------------------------
+
+def codex_held_locks(lock_dir: Path) -> dict[str, int]:
+    """thread id -> pid holding its writer lock open (one lsof call)."""
+    if not lock_dir.is_dir():
+        return {}
+    out = subprocess.run(["lsof", "-Fpn", "+D", str(lock_dir)], capture_output=True, text=True).stdout
+    held, pid = {}, None
+    for line in out.splitlines():
+        if line.startswith("p"):
+            pid = int(line[1:])
+        elif line.startswith("n") and line.endswith(".lock") and pid is not None:
+            held[Path(line[1:]).stem] = pid
+    return held
+
+
+def codex_names(root: Path) -> dict[str, str]:
+    names = {}
+    index = root / "session_index.jsonl"
+    if index.is_file():
+        for line in index.read_text(errors="replace").splitlines():
+            try:
+                obj = json.loads(line)
+                if obj.get("thread_name"):
+                    names[obj["id"]] = obj["thread_name"]   # later lines win
+            except (ValueError, KeyError, AttributeError):
+                continue
+    return names
+
+
+def scan_codex(home: Path, procs: dict[int, list[str]]) -> tuple[list[dict], dict, int]:
+    root = Path(os.environ["CODEX_HOME"]) if os.environ.get("CODEX_HOME") else home / ".codex"
+    sessions = root / "sessions"
+    if not sessions.is_dir():
+        return [], {"status": "absent", "path": str(sessions)}, 0
+    held = codex_held_locks(root / "thread-writer-locks")
+    names = codex_names(root)
+    records, hidden = [], 0
+    for path in sorted(sessions.glob("*/*/*/rollout-*.jsonl")):
+        match = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$", path.name)
+        rec = new_record("codex", match.group(1) if match else path.stem)
+        rec["transcript"] = str(path)
+        rec["updated"] = iso_from_epoch(path.stat().st_mtime)
+        try:
+            with path.open("r", encoding="utf-8", errors="replace") as fh:
+                meta = json.loads(fh.readline())["payload"]
+            rec["id"] = meta.get("id", rec["id"])
+        except (ValueError, KeyError, TypeError, AttributeError):
+            rec["unreadable"] = True
+            records.append(rec)
+            continue
+        rec["spawn_dir"] = meta.get("cwd")
+        rec["created"] = iso_normalize(meta.get("timestamp"))
+        # source is "cli"/"exec", {"subagent": "review"}, or {"subagent": {"thread_spawn": {...}}}
+        source = meta.get("source")
+        subagent = source.get("subagent") if isinstance(source, dict) else None
+        spawn = subagent.get("thread_spawn") or {} if isinstance(subagent, dict) else {}
+        if meta.get("thread_source") in CODEX_HIDDEN_SOURCES:
+            rec["lineage"] = {"kind": "subagent", "parent_id": spawn.get("parent_thread_id")}
+            rec["_hidden"] = True
+            hidden += 1
+        elif meta.get("forked_from_id"):
+            rec["lineage"] = {"kind": "fork", "parent_id": meta["forked_from_id"]}
+        rec["name"] = names.get(rec["id"])
+        rec["name_resumable"] = rec["name"] is not None
+        if rec["id"] in held:
+            pid = held[rec["id"]]
+            # app-server hosts (IDE, desktop app, companion plugins) keep many threads loaded
+            host = "app-server" if "app-server" in procs.get(pid, []) else "cli"
+            rec.update(live="yes", live_host=host, pid=pid, resume_blocked="running",
+                       live_basis=f"writer lock held by pid {pid} ({host})")
+        else:
+            rec["live_basis"] = "writer lock not held"
+            rec["resume"] = f"codex resume {rec['id']}"
+            if rec["name"]:
+                rec["resume_by_name"] = f"codex resume {shlex.quote(rec['name'])}"
+        records.append(rec)
+    return records, {"status": "ok", "path": str(sessions)}, hidden
+
+
+# --- Muse ---------------------------------------------------------------------
+
+def muse_liveness(session_dir: str, procs: dict[int, list[str]]) -> tuple[str, str, int | None]:
+    lock = Path(session_dir) / ".session.lock"
+    try:
+        fields = dict(line.split("=", 1) for line in lock.read_text().splitlines() if "=" in line)
+    except OSError:
+        return "no", "no session lock", None
+    host, pid = fields.get("host"), fields.get("pid", "")
+    if host and host != socket.gethostname():
+        return "unknown", f"lock held on another host ({host})", None
+    if not pid.isdigit():
+        return "unknown", "lock has no pid", None
+    argv = procs.get(int(pid))
+    if argv is None:
+        return "no", f"stale lock, pid {pid} not running", None
+    if not runs_tool(argv, "muse"):
+        return "no", f"stale lock, pid {pid} is another program", None
+    return "yes", f"lock pid {pid} alive (muse)", int(pid)
+
+
+def muse_names(home: Path) -> dict[str, str]:
+    """session id -> canonical name from Muse's name authority. The index's
+    session_name column is only a projection and can be empty."""
+    db_path = home / "Library" / "Application Support" / "Muse" / "session-name-authority" / "session-names.db"
+    if not db_path.is_file():
+        return {}
+    try:
+        with open_ro(db_path) as db:
+            return dict(db.execute(
+                "SELECT session_id, normalized_name FROM session_name_claims WHERE kind = 'canonical'"))
+    except sqlite3.Error:
+        return {}
+
+
+def scan_muse(home: Path, procs: dict[int, list[str]]) -> tuple[list[dict], dict]:
+    db_path = data_home() / "muse" / "session-index.db"
+    if not db_path.is_file():
+        return [], {"status": "absent", "path": str(db_path)}
+    try:
+        with open_ro(db_path) as db:
+            rows = db.execute(
+                "SELECT session_id, session_dir, session_log_path, workspace_root, git_branch, title,"
+                " session_name, created_at_us, updated_at_us, msp_fork_source_session_id"
+                " FROM sessions").fetchall()
+    except sqlite3.Error as exc:
+        raise SourceError(f"muse: {db_path}: {exc}") from exc
+    names = muse_names(home)
+    records = []
+    for sid, sdir, log, ws, branch, title, name, created, updated, fork in rows:
+        name = names.get(sid) or name
+        rec = new_record("muse", sid)
+        rec.update(spawn_dir=ws or None, branch=branch, title=title, name=name,
+                   name_resumable=name is not None, transcript=log,
+                   export_command=f"muse export --session {sid}",
+                   created=iso_from_epoch(created / 1e6) if created else None,
+                   updated=iso_from_epoch(updated / 1e6) if updated else None)
+        if fork:
+            rec["lineage"] = {"kind": "fork", "parent_id": fork}
+        rec["live"], rec["live_basis"], rec["pid"] = muse_liveness(sdir, procs)
+        rec["live_host"] = "cli" if rec["live"] == "yes" else None
+        if rec["live"] == "yes":
+            rec["resume_blocked"] = "running"
+        elif not rec["spawn_dir"]:
+            rec["resume_blocked"] = "no_workspace"
+        else:
+            rec["resume"] = f"{cd_prefix(ws)}muse resume {sid}"
+            if name:
+                rec["resume_by_name"] = f"{cd_prefix(ws)}muse resume {shlex.quote(name)}"
+        records.append(rec)
+    return records, {"status": "ok", "path": str(db_path)}
+
+
+# --- OpenCode -----------------------------------------------------------------
+
+def opencode_directory_liveness(sessions_in_dir: list[dict], pid: int) -> dict[str, tuple[str, str]]:
+    """Decide liveness for sessions in a directory where an opencode process runs
+    without naming its session (`opencode` started bare, or with --continue).
+
+    sessions_in_dir: this directory's top-level sessions, newest `updated` first.
+    Returns {session_id: (live, basis)} for any session whose verdict is set;
+    sessions left out keep live="no".
+
+    Policy (owner decision, PR #86): only the newest session is `unknown`. The
+    process proves some session here may be running, not which one, so nothing
+    is claimed as running and older sessions keep their resume command.
+    """
+    if not sessions_in_dir:
+        return {}
+    newest = sessions_in_dir[0]
+    return {newest["id"]: ("unknown", f"opencode pid {pid} running in this directory; newest session assumed")}
+
+
+def scan_opencode(procs: dict[int, list[str]]) -> tuple[list[dict], dict, int]:
+    db_path = data_home() / "opencode" / "opencode.db"
+    if not db_path.is_file():
+        return [], {"status": "absent", "path": str(db_path)}, 0
+    cols = "id, parent_id, slug, directory, title, time_created, time_updated, time_archived"
+    try:
+        with open_ro(db_path) as db:
+            # Newer OpenCode releases write `session_v2`, which imports the old `session` rows. The
+            # import stops once OpenCode marks the migration done, so a row written to `session`
+            # afterwards exists only there: list it as `legacy_only`, with no v2 command for it.
+            tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            legacy = []
+            if "session_v2" in tables:
+                v2_cols = {r[1] for r in db.execute("PRAGMA table_info(session_v2)")}
+                fork_col = "fork_session_id" if "fork_session_id" in v2_cols else "NULL"
+                rows = db.execute(f"SELECT {cols}, {fork_col} FROM session_v2").fetchall()
+                if "session" in tables:
+                    legacy = db.execute(f"SELECT {cols}, NULL FROM session"
+                                        " WHERE id NOT IN (SELECT id FROM session_v2)").fetchall()
+            else:
+                rows = db.execute(f"SELECT {cols}, NULL FROM session").fetchall()
+    except sqlite3.Error as exc:
+        raise SourceError(f"opencode: {db_path}: {exc}") from exc
+    records, hidden = [], 0
+    legacy_ids = {row[0] for row in legacy}
+    for sid, parent, slug, directory, title, created, updated, archived, fork in rows + legacy:
+        rec = new_record("opencode", sid)
+        rec.update(name=slug, title=title, spawn_dir=directory or None, archived=archived is not None,
+                   created=iso_from_epoch(created / 1e3), updated=iso_from_epoch(updated / 1e3),
+                   export_command=None if sid in legacy_ids else f"opencode export {sid}",
+                   live_basis="no opencode process")
+        if parent:
+            rec["lineage"] = {"kind": "subagent", "parent_id": parent}
+            rec["_hidden"] = True
+            hidden += 1
+        elif fork:  # a user fork: listed, like Codex and Muse forks
+            rec["lineage"] = {"kind": "fork", "parent_id": fork}
+        records.append(rec)
+
+    by_dir: dict[str, list[dict]] = {}
+    for rec in records:
+        if not rec.get("_hidden") and rec["spawn_dir"]:
+            by_dir.setdefault(rec["spawn_dir"], []).append(rec)
+    known = {rec["id"]: rec for rec in records}
+    for pid, argv in procs.items():
+        if not runs_tool(argv, "opencode"):
+            continue
+        named = next((argv[i + 1] for i, tok in enumerate(argv[:-1]) if tok in ("-s", "--session")), None)
+        if named in known:
+            known[named].update(live="yes", live_host="cli", pid=pid,
+                                live_basis=f"opencode pid {pid} --session {named}")
+            continue
+        cwd = process_cwd(pid)
+        group = sorted(by_dir.get(cwd or "", []), key=lambda r: r["updated"] or "", reverse=True)
+        for sid, (live, basis) in opencode_directory_liveness(group, pid).items():
+            if known[sid]["live"] != "yes":
+                known[sid].update(live=live, live_basis=basis, pid=pid if live == "yes" else None)
+
+    for rec in records:
+        if rec["live"] == "yes":
+            rec["resume_blocked"] = "running"
+        elif rec["id"] in legacy_ids:
+            rec["resume_blocked"] = "legacy_only"
+        elif not rec["spawn_dir"]:
+            rec["resume_blocked"] = "no_workspace"
+        else:
+            rec["resume"] = f"{cd_prefix(rec['spawn_dir'])}opencode --session {rec['id']}"
+    return records, {"status": "ok", "path": str(db_path), "legacy_only": len(legacy_ids)}, hidden
+
+
+# --- list ---------------------------------------------------------------------
+
+def parse_since(value: str) -> str:
+    match = re.fullmatch(r"(\d+)([mhdw])", value)
+    if match:
+        unit = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}[match.group(2)]
+        point = dt.datetime.now(dt.timezone.utc) - dt.timedelta(**{unit: int(match.group(1))})
+        return point.strftime("%Y-%m-%dT%H:%M:%SZ")
+    normalized = iso_normalize(value if "T" in value else f"{value}T00:00:00+00:00")
+    if normalized is None:
+        raise argparse.ArgumentTypeError(f"invalid --since {value!r}: use <n>m|h|d|w or an ISO date")
+    return normalized
+
+
+def collect(tools: list[str]) -> tuple[list[dict], dict, dict, list[str]]:
+    home = Path.home()
+    procs = processes() if {"codex", "muse", "opencode"} & set(tools) else {}
+    sessions, census, sources, failed = [], {}, {}, []
+    for tool in tools:
+        hidden = 0
+        try:
+            if tool == "claude":
+                recs, src = scan_claude(home)
+            elif tool == "codex":
+                recs, src, hidden = scan_codex(home, procs)
+            elif tool == "muse":
+                recs, src = scan_muse(home, procs)
+            else:
+                recs, src, hidden = scan_opencode(procs)
+        except (SourceError, OSError) as exc:
+            recs, src = [], {"status": "error", "message": str(exc)}
+            failed.append(tool)
+        sources[tool] = src
+        census[tool] = {"listed": sum(not r.get("_hidden") for r in recs), "hidden_subagents": hidden,
+                        "unreadable": sum(r["unreadable"] for r in recs),
+                        "live": sum(r["live"] == "yes" and not r.get("_hidden") for r in recs)}
+        sessions.extend(recs)
+    return sessions, census, sources, failed
+
+
+def cmd_list(args) -> int:
+    tools = list(dict.fromkeys(args.tool)) if args.tool else list(TOOLS)
+    sessions, census, sources, failed = collect(tools)
+    keep = []
+    for rec in sessions:
+        if rec.pop("_hidden", False) and not args.include_subagents:
+            continue
+        if args.live and rec["live"] == "no":   # keep `unknown`: possibly running, rendered live?
+            continue
+        if args.since and (rec["updated"] or "") < args.since:
+            continue
+        keep.append(rec)
+    keep.sort(key=lambda r: (r["tool"], r["id"]))
+    keep.sort(key=lambda r: r["updated"] or "", reverse=True)
+
+    if args.output == "json":
+        print(json.dumps({"sessions": keep, "census": census, "sources": sources}, indent=2))
+    else:
+        for r in keep:
+            print("\t".join(str(v) if v else "-" for v in (
+                r["tool"], r["id"], r["name"], r["live"], r["updated"], r["spawn_dir"], r["title"])))
+        for tool, c in census.items():
+            print(f"# census {tool}: listed={c['listed']} hidden_subagents={c['hidden_subagents']}"
+                  f" unreadable={c['unreadable']} live={c['live']} source={sources[tool]['status']}")
+    if failed:
+        message = "; ".join(sources[t]["message"] for t in failed)
+        if args.output == "json":
+            print(json.dumps({"error": {"code": "source_unreadable", "message": message, "sources": failed}}),
+                  file=sys.stderr)
+        else:
+            print(f"session-inventory: could not read {', '.join(failed)}: {message}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="session-inventory",
+        description="Read-only inventory of Claude Code, Codex, Muse, and OpenCode sessions.")
+    parser.add_argument("-V", "--version", action="version", version=f"session-inventory {VERSION}")
+    add_output_flags(parser, default="text")
+    sub = parser.add_subparsers(dest="command")
+    lst = sub.add_parser("list", help="list sessions, newest activity first")
+    lst.add_argument("--tool", action="append", choices=TOOLS, help="restrict to a tool (repeatable)")
+    lst.add_argument("--live", action="store_true",
+                     help="only sessions running right now (live yes, plus unknown = possibly running)")
+    lst.add_argument("--since", type=parse_since, help="only sessions active since <n>m|h|d|w or an ISO date")
+    lst.add_argument("--include-subagents", action="store_true",
+                     help="also list subagent and guardian threads (always counted)")
+    add_output_flags(lst, default=argparse.SUPPRESS)   # SUPPRESS keeps a root-level choice
+    return parser
+
+
+def add_output_flags(parser: argparse.ArgumentParser, default) -> None:
+    """--output/--json are global: accepted before or after the verb."""
+    parser.add_argument("-o", "--output", choices=("text", "json"), default=default)
+    parser.add_argument("--json", dest="output", action="store_const", const="json", default=default)
+
+
+def main(argv: list[str] | None = None) -> int:
+    signal.signal(signal.SIGINT, lambda *_: sys.exit(130))
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+    return cmd_list(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

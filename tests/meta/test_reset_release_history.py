@@ -11,7 +11,7 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts/reset_release_history.py
 
 
 def _run(directory):
-    return subprocess.run(  # noqa: S603 — checked-in helper, isolated test input
+    return subprocess.run(
         [sys.executable, str(SCRIPT)],
         cwd=directory,
         capture_output=True,
