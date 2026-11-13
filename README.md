@@ -32,8 +32,10 @@ Python 3.13 or later. macOS and Linux.
 | `lost-sessions install PKG…` / `uninstall PKG…` | Add or remove plugins in the `uv tool` install |
 
 The window is every session that started before the last boot and was active
-since 00:00 on the day before it; `--since 3d` or `--since 2026-11-09` widens
-it. Running sessions and sessions a manager restores are hidden unless `--all`.
+since its start: by default 00:00 on the day before the boot. `--since` sets
+that start, as a date (`--since 2026-11-09`) or a duration back from now
+(`--since 3d`); pick an earlier start to widen the window. Running sessions
+and sessions a manager restores are hidden unless `--all`.
 
 ## Library
 

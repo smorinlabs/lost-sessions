@@ -127,9 +127,18 @@ The contract:
   Set `resume_in_dir = False` if the agent resumes without changing into the
   session's folder, as Codex does.
 
+Set `created` and `updated` as ISO 8601 UTC strings (`2026-11-10T22:00:00Z`).
+Recovery needs both: a session without them never enters the window, which is
+the sessions that started before the boot and were updated since its start.
+
 Fill `Session.resume` with the full shell command when the session can be
-resumed, or `resume_blocked` with the reason (`running`, `no_workspace`, ...).
-Set `live` to `yes`, `no` or `unknown`, with `live_basis` saying why.
+resumed. `resume_blocked` records why it is withheld (`running`,
+`no_workspace`, ...) for the inventory output only: core does not read it.
+What core refuses to open is decided by `live`, by a session manager's
+`restored_ids()`, and by a missing `spawn_dir` folder. When `resume` is empty,
+core builds a command from `resume_args()`.
+Set `live` to `yes`, `no` or `unknown`, with `live_basis` saying why; `yes`
+blocks opening, `unknown` opens with a warning.
 
 ## Session managers
 
@@ -182,7 +191,11 @@ managers get an `open --<name>` flag, a `workspaces` section and a key in the
 lost-sessions runs a plan step by step. A `Step` has `argv`, `cosmetic`
 (a rename: a failure is only a note) and `opens` (the step must open
 something according to its response, or the action fails). Placeholders in
-`argv` are filled from earlier responses. Destinations are shared by
+`argv` are filled from earlier responses, by `on_response()` writing to
+`fills`. A placeholder must be a whole `argv` element (`"{pane}"`, not
+`"--pane={pane}"`). The supported ones are `{pane}`, `{window}`, `{tab}`,
+`{workspace}` and `{session}`; previews show them as `<pane>`, `<new
+session>` and so on. Destinations are shared by
 identity: rows sent to the same new destination share one object, so the
 first row creates it and the rest open inside it.
 
@@ -224,10 +237,15 @@ distributions. Built-ins always load.
 
 ```bash
 lost-sessions install lost-sessions-acme          # in a `uv tool` install
-uv tool install lost-sessions --with lost-sessions-acme   # the same, by hand
-uv tool install lost-sessions --with-editable ./lost-sessions-acme   # while developing
+lost-sessions install lost-sessions-acme --print  # the exact uv and pip commands, run nothing
+lost-sessions install ./lost-sessions-acme        # a local checkout
 lost-sessions plugins                              # lists it, with its hooks and version
 ```
+
+Prefer `lost-sessions install` to running `uv tool install --with` by hand: a
+hand-written command must repeat every plugin already installed and the
+tool's own source (for example a git tag), or the reinstall drops them.
+`--print` shows the complete command for the current environment.
 
 `lost-sessions install` reinstalls the tool with all its plugins, keeping
 where each came from (an index, a local wheel, git or an editable checkout).
