@@ -9,6 +9,7 @@ from importlib import metadata
 from typing import Any, Protocol
 
 import pluggy
+from pydantic import BaseModel
 
 from lost_sessions import hookspecs
 
@@ -116,3 +117,34 @@ def get_agent_tools(manager: PluginManager = pm) -> dict[str, Named]:
 
 def get_session_managers(manager: PluginManager = pm) -> dict[str, Named]:
     return _collect(manager.hook.register_session_managers, "session manager")
+
+
+class PluginInfo(BaseModel):
+    """One registered plugin, as `lost-sessions plugins` lists it."""
+
+    name: str
+    hooks: list[str]
+    version: str | None = None
+
+
+def get_plugins(manager: PluginManager = pm, *, all: bool = False) -> list[PluginInfo]:
+    """Registered plugins as `llm plugins` lists them: name, hooks, version.
+
+    Built-ins are hidden unless `all`. Sorted by name (llm's order follows a set).
+    """
+    load_plugins(manager)
+    found = []
+    for plugin in manager.get_plugins():
+        name = manager.get_name(plugin) or ""
+        if not all and name in DEFAULT_PLUGINS:
+            continue
+        info = PluginInfo(
+            name=name,
+            hooks=sorted(h.name for h in manager.get_hookcallers(plugin) or []),
+        )
+        distribution = manager.distributions.get(plugin)
+        if distribution is not None:
+            info.name = str(distribution.metadata["Name"])
+            info.version = str(distribution.version)
+        found.append(info)
+    return sorted(found, key=lambda p: p.name)

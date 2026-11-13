@@ -32,10 +32,10 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 - [x] [P01-TS05] The 118 original tests port under the Section 8 contract (TS-5)
 - [x] [P01-TS10] Live test passes against real Herdr (TS-10): `tests/test_live.py`, run 2026-11-12 with Steve's go-ahead, passed
 - [x] [P01-TS11] Stored-data compatibility fixtures for history and listing (TS-11)
-- [ ] [P01-T05] Add `plugins`, `install`, `uninstall` (PR 4)
-- [ ] [P01-TS07] Wheel installs into a clean `uv tool` env; built-ins and a fake plugin are listed (TS-7)
-- [ ] [P01-TS08] `install --print` for `uv tool` and virtualenv; plugin survives `uv tool upgrade --reinstall` (TS-8)
-- [ ] [P01-TS09] `uv-receipt.toml` detection signal still exists (TS-9)
+- [x] [P01-T05] Add `plugins`, `install`, `uninstall` (PR 4)
+- [x] [P01-TS07] Wheel installs into a clean `uv tool` env; built-ins and a fake plugin are listed (TS-7)
+- [x] [P01-TS08] `install --print` for `uv tool` and virtualenv; plugin survives `uv tool upgrade --reinstall` (TS-8)
+- [x] [P01-TS09] `uv-receipt.toml` detection signal still exists (TS-9)
 - [ ] [P01-T06] Plugin-author docs (PR 5)
 - [ ] Regression Test Status
 
