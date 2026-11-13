@@ -12,14 +12,28 @@ import re
 import shlex
 import subprocess  # nosec B404 - fixed argv lists, never a shell
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from lost_sessions.agents import AgentTool
-from lost_sessions.history import HistoryEntry, Listing
-from lost_sessions.managers import SessionManager
+from lost_sessions.history import (
+    HistoryEntry,
+    Listing,
+    append_log,
+    format_entry,
+    log_path,
+)
+from lost_sessions.managers import (
+    PLACEHOLDERS,
+    Destination,
+    Plan,
+    Resume,
+    SessionManager,
+    result_of,
+    run_json,
+)
 from lost_sessions.models import Session
 from lost_sessions.plugins import PluginManager, get_session_managers, pm
 
@@ -334,3 +348,174 @@ def exit_status(entries: Sequence[HistoryEntry]) -> int:
     """1 when any action failed or was skipped; blocked (opened, waiting at a
     prompt) counts as done."""
     return 1 if any(e.result in ("failed", "skipped") for e in entries) else 0
+
+
+# --- opening in a session manager -----------------------------------------------
+
+
+def window_label(r: Row) -> str:
+    return f"#{r.n} {about(r.session)[:40]}"
+
+
+def make_plan(r: Row, manager: PluginManager = pm) -> Plan:
+    s = r.session
+    return Plan(
+        session=s,
+        n=r.n,
+        label=window_label(r),
+        cwd=s.spawn_dir or str(Path.home()),
+        resume=Resume(command=resume_command(s, manager), argv=resume_args(s, manager)),
+    )
+
+
+def display(argv: Sequence[str], fills: Mapping[str, str | None] | None = None) -> str:
+    fills = fills or {}
+    return " ".join(fills.get(t) or PLACEHOLDERS.get(t) or shlex.quote(t) for t in argv)
+
+
+def preview(
+    r: Row,
+    action: str | None,
+    mgr: SessionManager | None,
+    dest: Destination | None,
+    manager: PluginManager = pm,
+) -> str:
+    """What an action will do, for the menu's preview pane."""
+    if action == "print":
+        return resume_command(r.session, manager)
+    if mgr is None or dest is None:
+        keys = ", ".join(
+            f"{m.name[0]} for {m.display_name}"
+            for m in session_managers(manager).values()
+        )
+        return f"(no action — press p to print, {keys})"
+    return "\n".join(
+        display(step.argv) for step in mgr.plan(make_plan(r, manager), dest)
+    )
+
+
+def execute(
+    r: Row, mgr: SessionManager, dest: Destination, manager: PluginManager = pm
+) -> HistoryEntry:
+    """Open one row in a session manager; returns its history entry (not yet logged)."""
+    s = r.session
+    entry = HistoryEntry.new(
+        action=mgr.name, tool=s.tool, id=s.id, about=about(s), dir=s.spawn_dir
+    )
+    why = refusal(s, mgr.name)
+    if why:
+        entry.result, entry.note = "skipped", why
+        return entry
+    fills: dict[str, str] = {}
+    notes: list[str] = []
+    commands: list[str] = []
+    for step in mgr.plan(make_plan(r, manager), dest):
+        commands.append(display(step.argv, fills))
+        if any(t in PLACEHOLDERS and not fills.get(t) for t in step.argv):
+            if step.cosmetic:
+                notes.append("could not name it: no ID in the previous response")
+                continue
+            entry.result = "failed"
+            notes.append(f"no value for a placeholder in: {display(step.argv, fills)}")
+            break
+        response = run_json([fills.get(t, t) for t in step.argv])
+        opened = (
+            mgr.on_response(step, result_of(response.data), dest, fills)
+            if response.code == 0
+            else None
+        )
+        blocked = mgr.blocked_note(response.error, fills) if response.code else None
+        if opened is not None:
+            entry.opened = opened
+        elif blocked:
+            entry.result = "blocked"
+            notes.append(blocked)
+        elif response.code and step.cosmetic:
+            notes.append(
+                f"could not name it: {response.error.get('message', '')}".strip()
+            )
+        elif response.code:
+            entry.result = "failed"
+            notes.append(
+                f"{display(step.argv, fills)}: {response.error.get('code', '')} "
+                f"{response.error.get('message', '')}".strip()
+            )
+            break
+        elif step.opens:
+            entry.result = "failed"
+            notes.append(
+                f"{display(step.argv, fills)}: nothing opened according to the response"
+            )
+            break
+    entry.commands = commands
+    entry.note = "; ".join(notes)
+    return entry
+
+
+def focus_command(
+    entry: HistoryEntry, options: Mapping[str, object], manager: PluginManager = pm
+) -> list[str] | None:
+    """The command that brings an opened session to the front, or None when
+    nothing was opened."""
+    if entry.result not in ("ok", "blocked"):
+        return None
+    mgr = session_managers(manager).get(entry.action or "")
+    if mgr is None:
+        return None
+    return mgr.focus_command(entry.opened or {}, options)
+
+
+def focus(
+    entry: HistoryEntry, options: Mapping[str, object], manager: PluginManager = pm
+) -> HistoryEntry:
+    """Bring an opened session to the front; returns its own history entry."""
+    out = HistoryEntry.new(
+        action="focus",
+        tool=entry.tool,
+        id=entry.id,
+        about=entry.about,
+        dir=entry.dir,
+        opened=entry.opened or {},
+    )
+    step = focus_command(entry, options, manager)
+    if not step:
+        out.result, out.note = "skipped", "nothing to focus: the session was not opened"
+        return out
+    out.commands = [display(step)]
+    response = run_json(step)
+    if response.code:
+        out.result = "failed"
+        out.note = f"{response.error.get('code', '')} {response.error.get('message', '')}".strip()
+    return out
+
+
+def run_focus(
+    entry: HistoryEntry, options: Mapping[str, object], manager: PluginManager = pm
+) -> HistoryEntry:
+    f = focus(entry, options, manager)
+    append_log(f)
+    (success if f.result == "ok" else warn)(
+        f"focus {f.result}" + (f": {f.note}" if f.note else "")
+    )
+    return f
+
+
+def run_action(
+    r: Row,
+    action: str,
+    mgr: SessionManager | None,
+    dest: Destination | None,
+    manager: PluginManager = pm,
+) -> HistoryEntry:
+    if action != "print" and r.session.live == "unknown":
+        basis = r.session.live_basis or "liveness unknown"
+        warn(f"#{r.n} may already be running ({basis}); opening anyway")
+    if mgr is None or dest is None:
+        entry = execute_print(r, manager)
+    else:
+        entry = execute(r, mgr, dest, manager)
+    append_log(entry)
+    report = success if entry.result in ("ok", "blocked") else warn
+    report(f"{action} #{r.n} {entry.result}; logged to {log_path()}")
+    print(format_entry(entry))
+    return entry

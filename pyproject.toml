@@ -173,7 +173,9 @@ max-line-length = 88
   "S603",
   "S607",
   "ANN",
-] # asserts + annotations optional; tests drive the CLI and stand-ins via subprocess
+  "F811",
+] # asserts + annotations optional; tests drive the CLI and stand-ins via subprocess;
+# F811: importing a pytest fixture and naming it as a parameter is the normal pattern
 # S101: assert statements removed under -O — security risk if assert is the only gate.
 # S105/S106: hardcoded password strings/variables in code.
 

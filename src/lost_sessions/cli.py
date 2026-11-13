@@ -6,11 +6,11 @@ import datetime as dt
 import json
 import re
 import sys
-from collections.abc import Callable
 
 import click
 
 from lost_sessions import __version__
+from lost_sessions.managers import SessionManager
 from lost_sessions.plugins import PluginManager, load_plugins, pm
 
 
@@ -40,7 +40,12 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
     from lost_sessions.inventory import agent_tools
 
     cli.add_command(_inventory_command(list(agent_tools(manager)), manager))
-    for command in (_list_command(manager), _open_command(manager), _history_command()):
+    for command in (
+        _list_command(manager),
+        _open_command(manager),
+        _workspaces_command(manager),
+        _history_command(),
+    ):
         cli.add_command(command)
     manager.hook.register_commands(cli=cli)
     return cli
@@ -142,33 +147,34 @@ def _inventory_command(tools: list[str], manager: PluginManager) -> click.Comman
 # --- recovery commands ----------------------------------------------------------
 
 
-def _window_options(f: Callable[..., None]) -> Callable[..., None]:
+def _window_params() -> list[click.Parameter]:
     """--since, --all/--hide-running and --include-helpers, as the script had them."""
-    f = click.option(
-        "--include-helpers",
-        is_flag=True,
-        help="also show helper runs (scratchpad folders, Codex Companion tasks)",
-    )(f)
-    f = click.option(
-        "--hide-running",
-        is_flag=True,
-        help="hide running and restored sessions (the default)",
-    )(f)
-    f = click.option(
-        "--all",
-        "show_all",
-        is_flag=True,
-        help="also show running and restored sessions (Print only)",
-    )(f)
-    return click.option(
-        "--since",
-        metavar="WHEN",
-        help=(
-            "start of the window: a date, a date-time, or <n>m|h|d|w (default: "
-            "00:00 on the day before the last boot). Sessions must have started "
-            "before the boot"
+    return [
+        click.Option(
+            ["--since"],
+            metavar="WHEN",
+            help=(
+                "start of the window: a date, a date-time, or <n>m|h|d|w (default: "
+                "00:00 on the day before the last boot). Sessions must have started "
+                "before the boot"
+            ),
         ),
-    )(f)
+        click.Option(
+            ["--all", "show_all"],
+            is_flag=True,
+            help="also show running and restored sessions (Print only)",
+        ),
+        click.Option(
+            ["--hide-running"],
+            is_flag=True,
+            help="hide running and restored sessions (the default)",
+        ),
+        click.Option(
+            ["--include-helpers"],
+            is_flag=True,
+            help="also show helper runs (scratchpad folders, Codex Companion tasks)",
+        ),
+    ]
 
 
 def _check_exclusive(show_all: bool, hide_running: bool) -> None:
@@ -180,8 +186,6 @@ def _check_exclusive(show_all: bool, hide_running: bool) -> None:
 
 
 def _list_command(manager: PluginManager) -> click.Command:
-    @click.command(name="list", help="numbered list of dropped sessions")
-    @_window_options
     def list_(
         since: str | None, show_all: bool, hide_running: bool, include_helpers: bool
     ) -> None:
@@ -231,40 +235,74 @@ def _list_command(manager: PluginManager) -> click.Command:
             print(f"     open:  {core.resume_command(s, manager)}\n")
         history.save_listing(shown, start)
 
-    return list_
+    return click.Command(
+        name="list",
+        callback=list_,
+        params=_window_params(),
+        help="numbered list of dropped sessions",
+    )
+
+
+LAST = "\0last"  # `--focus` with no REF: the last session opened
+
+
+def _managers(manager: PluginManager) -> dict[str, SessionManager]:
+    from lost_sessions.core import session_managers
+
+    load_plugins(manager)
+    return session_managers(manager)
 
 
 def _open_command(manager: PluginManager) -> click.Command:
-    @click.command(
-        name="open",
-        help=(
-            "print or open sessions without the menu. REF is a number from the "
-            "last `list` or `recover`, or a full or unique-prefix session ID."
-        ),
-    )
-    @click.argument("refs", nargs=-1, required=True, metavar="REF...")
-    @click.option("--print", "print_", is_flag=True, help="print the resume command")
-    @_window_options
-    def open_(
+    managers = _managers(manager)
+
+    def command(
         refs: tuple[str, ...],
         print_: bool,
+        focus: str | None,
         since: str | None,
         show_all: bool,
         hide_running: bool,
         include_helpers: bool,
+        **options: object,
     ) -> None:
         from lost_sessions import core, history
 
         _check_exclusive(show_all, hide_running)
-        if not print_:
-            core.error("choose how to open the sessions: --print")
+        chosen = [name for name in managers if options.pop(f"via_{name}", False)]
+        ways = ["print"] * print_ + chosen
+        if len(ways) != 1:
+            flags = " ".join(["--print", *(f"--{n}" for n in managers)])
+            if len(ways) > 1:
+                core.error(f"choose one of {flags}")
+            else:
+                core.error(f"one of the arguments {flags} is required")
             sys.exit(2)
-        split = [r.partition("@") for r in refs]
+        action = ways[0]
+        mgr = managers.get(action)
+        split = [
+            r.partition("@") for r in refs
+        ]  # 29@codex: into the `codex` destination
         names = [ref for ref, _, _ in split]
-        if any(at for _, at, _ in split):
+        wanted = [dest if at else None for _, at, dest in split]
+        if action == "print" and any(w is not None for w in wanted):
             core.error(
                 "REF@DEST names a session-manager destination; "
                 "it does not apply to --print"
+            )
+            sys.exit(2)
+        if any(w == "" for w in wanted):
+            core.error("REF@ needs a destination after the @, e.g. 29@recovered")
+            sys.exit(2)
+        if focus is not None and action == "print":
+            core.error(
+                "--focus brings an opened session to the front; "
+                "it does not apply to --print"
+            )
+            sys.exit(2)
+        if focus not in (None, LAST) and focus not in names:
+            core.error(
+                f"--focus {focus}: name one of the REFs being opened ({', '.join(names)})"
             )
             sys.exit(2)
         listing = history.load_listing()
@@ -273,6 +311,10 @@ def _open_command(manager: PluginManager) -> click.Command:
             since = listing.since
         window = core.load_rows(since, manager)
         picked, problems = core.resolve_refs(names, window.rows, listing)
+        if mgr is not None:
+            defaults = [str(options.get(o.name or "")) for o in mgr.click_options()]
+            for note in mgr.warnings([*defaults, *(w for w in wanted if w)], options):
+                core.warn(note)
         for p in problems:
             core.error(p)
         if problems:
@@ -285,17 +327,104 @@ def _open_command(manager: PluginManager) -> click.Command:
                     f"numbers come from a listing saved {saved:%b %d %H:%M}; "
                     "run `lost-sessions list` to refresh"
                 )
+        dests = None
+        if mgr is not None:
+            all_dests = {name: m.destinations(options) for name, m in managers.items()}
+            dests = all_dests[action]
+            _, plural = mgr.destination_noun
+            for label in dict.fromkeys(w or dests.default_label for w in wanted):
+                ids = dests.ambiguous(label)
+                if ids:
+                    core.error(
+                        f"{label!r} names {len(ids)} {plural} ({', '.join(ids)}); "
+                        f"use the ID instead, e.g. REF@{ids[0]}"
+                    )
+                    sys.exit(2)
         entries = []
-        for r in picked:
-            core.info(f"#{r.n} → {r.session.id}  {core.about(r.session)}")
-            entry = core.execute_print(r, manager)
-            history.append_log(entry)
-            core.success(f"print #{r.n} {entry.result}; logged to {history.log_path()}")
-            print(history.format_entry(entry))
-            entries.append(entry)
+        for r, dest_label in zip(picked, wanted, strict=True):
+            target = None
+            if dests is not None:
+                target = dests.get(dest_label) if dest_label else dests.default()
+            where = f"  → {dests.describe(target)}" if dests and target else ""
+            core.info(f"#{r.n} → {r.session.id}  {core.about(r.session)}{where}")
+            entries.append(core.run_action(r, action, mgr, target, manager))
+        if focus is not None and entries:
+            opened = [e for e in entries if core.focus_command(e, options, manager)]
+            if focus == LAST:
+                pick = opened[-1] if opened else entries[-1]
+            else:
+                pick = entries[names.index(focus)]
+            core.run_focus(pick, options, manager)
         sys.exit(core.exit_status(entries))
 
-    return open_
+    params: list[click.Parameter] = [
+        click.Argument(["refs"], nargs=-1, required=True, metavar="REF..."),
+        click.Option(
+            ["--print", "print_"], is_flag=True, help="print the resume command"
+        ),
+    ]
+    params += [
+        click.Option([f"--{name}", f"via_{name}"], is_flag=True, help=m.open_help)
+        for name, m in managers.items()
+    ]
+    params.append(
+        click.Option(
+            ["--focus"],
+            is_flag=False,
+            flag_value=LAST,
+            default=None,
+            metavar="REF",
+            help=(
+                "afterwards, bring REF (default: the last one opened) to the front "
+                "in its session manager"
+            ),
+        )
+    )
+    for m in managers.values():
+        params += m.click_options()
+    return click.Command(
+        name="open",
+        callback=command,
+        params=params + _window_params(),
+        help=(
+            "print or open sessions without the menu. REF is a number from the "
+            "last `list` or `recover`, or a full or unique-prefix session ID. "
+            "REF@DEST opens that session in the destination named DEST instead "
+            "of the default, e.g. 29@codex 31@'tax prep'."
+        ),
+    )
+
+
+def _workspaces_command(manager: PluginManager) -> click.Command:
+    managers = _managers(manager)
+
+    def command(**options: object) -> None:
+        from lost_sessions import core
+
+        ok = True
+        for i, m in enumerate(managers.values()):
+            dests = m.destinations(options)
+            lines = m.workspaces_lines(dests)
+            if i:
+                print()
+            print(lines[0])
+            if dests.available:
+                for line in lines[1:]:
+                    print(line)
+            else:
+                core.error(m.unreachable())
+                ok = False
+        sys.exit(0 if ok else 1)
+
+    params: list[click.Parameter] = []
+    for m in managers.values():
+        params += m.click_options()
+    return click.Command(
+        name="workspaces",
+        callback=command,
+        params=params,
+        help="list the destinations each session manager can open sessions in",
+    )
 
 
 def _history_command() -> click.Command:
