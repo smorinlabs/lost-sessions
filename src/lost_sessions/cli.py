@@ -480,11 +480,15 @@ def _recover_command(manager: PluginManager) -> click.Command:
             sys.exit(0)
         # Re-check liveness: a session may have been resumed elsewhere meanwhile.
         fresh = core.load_rows(window.start.isoformat(timespec="seconds"), manager)
-        live_now = {r.session.id: r.session.live for r in fresh.rows}
+        now = {r.session.id: r.session for r in fresh.rows}
         entries = []
         for r, action, target in chosen:
-            if action != "print" and live_now.get(r.session.id) == "yes":
-                r.session.live = "yes"
+            latest = now.get(r.session.id)
+            if action != "print" and latest is not None:
+                if latest.live == "yes":
+                    r.session.live = "yes"
+                # restored by a manager while the menu was open: refuse, not duplicate
+                r.session.restored_by = latest.restored_by or r.session.restored_by
             entries.append(
                 core.run_action(r, action, managers.get(action), target, manager)
             )

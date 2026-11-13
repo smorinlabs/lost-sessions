@@ -434,3 +434,31 @@ def test_recover_when_nothing_is_chosen(fakes):
         code, out, _ = run("recover", *SINCE)
     assert code == 0
     assert "Nothing chosen" in out
+
+
+def test_recover_refuses_a_session_restored_while_the_menu_was_open(fakes, monkeypatch):
+    rs = rows(fakes)
+    d = dests()
+    stub = mock.Mock(focus_id=None)
+    stub.run.return_value = [(rs[CLAUDE_ID], "rex", d["rex"].default())]
+    restored = {"n": 0}
+    real = core.load_rows
+
+    def load_rows(since, manager=None):
+        window = real(since, manager) if manager else real(since)
+        restored["n"] += 1
+        if restored["n"] == 2:  # the re-check after the menu closes
+            for r in window.rows:
+                if r.session.id == CLAUDE_ID:
+                    r.session.restored_by = ("Herdr", "work / tab")
+        return window
+
+    monkeypatch.setattr(core, "load_rows", load_rows)
+    with (
+        mock.patch.object(menu, "make_menu", return_value=stub),
+        mock.patch.object(cli, "interactive", return_value=True),
+    ):
+        code, _, err = run("recover", *SINCE)
+    assert code == 1
+    assert "already in Herdr" in err or "skipped" in err
+    assert fakes["calls"]() == []
