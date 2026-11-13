@@ -21,8 +21,31 @@
 
 from importlib import metadata
 
-from lost_sessions.hookspecs import hookimpl
-
 __version__ = metadata.version("lost_sessions")
 
-__all__ = ["__version__", "hookimpl"]
+# The public API for plugin authors (design 0006, Section 3).
+from lost_sessions.agents import AgentTool, ScanContext
+from lost_sessions.hookspecs import hookimpl
+from lost_sessions.managers import (
+    Destination,
+    Destinations,
+    Plan,
+    SessionManager,
+    Step,
+)
+from lost_sessions.models import ScanResult, Session, SourceStatus
+
+__all__ = [
+    "AgentTool",
+    "Destination",
+    "Destinations",
+    "Plan",
+    "ScanContext",
+    "ScanResult",
+    "Session",
+    "SessionManager",
+    "SourceStatus",
+    "Step",
+    "__version__",
+    "hookimpl",
+]

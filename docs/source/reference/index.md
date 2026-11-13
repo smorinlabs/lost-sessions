@@ -8,5 +8,6 @@ maxdepth: 2
 project_structure
 configuration_files
 cli_reference
+plugins
 versioning
 ```
