@@ -324,7 +324,7 @@ There are two ways out. T6 picks one:
    - Anywhere else: print both lines, explain that nothing was run, and exit `1`.
    - **Never run `pip`.** Running it is what loses plugins on `uv tool upgrade` (`llm` #575, reproduced in T7).
 
-**Accepted consequences.** Two things are lost at the next `install`: packages added by hand with `--with` that are not plugins, and a version pin on `lost-sessions` itself (pins live only in the receipt). `install` warns when that would happen.
+**Accepted consequences.** Three things are lost at the next `install`: extras requested for a plugin (installed metadata does not record them, and the receipt is not parsed); packages added by hand with `--with` that are not plugins, and a version pin on `lost-sessions` itself (pins live only in the receipt). `install` warns when that would happen.
 
 **Facts behind this (observed with `uv` 0.11.29 on 2026-11-12):**
 - Re-running `uv tool install X --with …` replaces the add-on list, so additions and removals both work.

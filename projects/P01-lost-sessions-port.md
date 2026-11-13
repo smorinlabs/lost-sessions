@@ -37,6 +37,7 @@ package, with agents and session managers as pluggy plugins, as in `simonw/llm`.
 - [x] [P01-TS08] `install --print` for `uv tool` and virtualenv; plugin survives `uv tool upgrade --reinstall` (TS-8)
 - [x] [P01-TS09] `uv-receipt.toml` detection signal still exists (TS-9)
 - [ ] [P01-T06] Plugin-author docs (PR 5)
+- [ ] [P01-T07] `uninstall`: refuse (exit 1, naming it) when a kept plugin requires a removed one; today `uv` keeps the dependency and the command reports success. Deferred from PR #15 review.
 - [ ] Regression Test Status
 
 ### Deliverable

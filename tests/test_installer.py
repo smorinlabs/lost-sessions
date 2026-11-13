@@ -265,6 +265,7 @@ def test_a_requested_package_replaces_the_installed_one_with_the_same_name(
         ("lost_sessions.X==2.0rc1", "lost-sessions-x"),
         ("lost-sessions-x[extra]>=1", "lost-sessions-x"),
         ("lost-sessions-x @ file:///w/x.whl", "lost-sessions-x"),
+        ("lost-sessions-x@file:///w/x.whl", "lost-sessions-x"),
         ("./plugins/x", None),
         ("/abs/x-1.0-py3-none-any.whl", None),
         ("git+https://github.com/o/x", None),

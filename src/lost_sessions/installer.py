@@ -100,7 +100,8 @@ def tool_args(dist: Any) -> list[str]:  # noqa: ANN401 - an importlib Distributi
 def requested_name(spec: str) -> str | None:
     """The normalized distribution name a requested PKG names, or None for a bare
     path or URL (its name is only known after it is built)."""
-    if spec.startswith((".", "/", "~")) or "://" in spec.split(" @ ")[0]:
+    head = spec.split("@", 1)[0]  # PEP 508 allows `name@url` with no spaces
+    if spec.startswith((".", "/", "~")) or "://" in head:
         return None
     match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", spec)
     return normalized(match.group(0)) if match else None
@@ -171,7 +172,8 @@ def run(
         return 1
     warn(
         "this reinstalls lost-sessions with only its plugins: packages added with "
-        "--with that are not plugins, and a version pin on lost-sessions, are dropped"
+        "--with that are not plugins, extras requested for a plugin, and a version "
+        "pin on lost-sessions, are dropped"
     )
     proc = subprocess.run([uv, *cmds.uv[1:]], check=False)  # noqa: S603  # nosec B603 - fixed argv
     return 0 if proc.returncode == 0 else 1
