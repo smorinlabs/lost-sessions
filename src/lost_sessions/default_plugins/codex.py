@@ -65,6 +65,11 @@ def codex_names(root: Path) -> dict[str, str]:
 class Codex(AgentTool):
     name = "codex"
     needs_processes = True
+    resume_in_dir = False
+
+    @override
+    def resume_args(self, session: Session) -> list[str]:
+        return ["codex", "resume", session.id]
 
     @override
     def scan(self, ctx: ScanContext) -> ScanResult:

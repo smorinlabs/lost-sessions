@@ -1,0 +1,1183 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["textual>=8,<9"]
+# ///
+"""
+lost-sessions - recover agent sessions a reboot dropped
+========================================================
+Finds Claude Code, Codex, Muse and OpenCode sessions that started before the
+last boot but that Herdr will not restore, and reopens them: print the resume
+command, open it in a Rex window, or open it in a Herdr workspace.
+
+A session counts as "in Herdr" when its ID is in the last Herdr snapshot saved
+before the boot, or in the current layout, of any Herdr session.
+
+Every action is appended to ${XDG_STATE_HOME:-~/.local/state}/lost-sessions/history.jsonl.
+Needs `session-inventory` from the session-agent-list skill.
+"""
+import argparse
+import dataclasses
+import datetime as dt
+import hashlib
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import ClassVar
+
+HELPER_DIRS = ("/private/tmp/claude-", "/tmp/claude-")
+HELPER_PATH_PARTS = ("/lost-sessions-live-",)  # throwaway sessions from the live test
+HELPER_TITLES = ("Codex Companion Task",)
+ACTIONS = ("print", "rex", "herdr")
+# Herdr records Claude and Codex sessions through its own integrations. Muse has
+# none and OpenCode's is optional, so for them we report the resume command.
+REPORT_TOOLS = ("muse", "opencode")
+LOG_SOURCE = "lost-sessions"
+ABOUT_MAX = 100  # Muse titles can be a whole prompt
+LISTING_MAX_AGE = dt.timedelta(days=1)
+PLACEHOLDERS = {"{pane}": "<pane>", "{window}": "<window>", "{tab}": "<tab>", "{workspace}": "<new workspace>",
+                "{session}": "<new session>"}
+CURRENT = "current"  # --rex-session value: the Rex session lost-sessions runs in
+LAST = "\0last"  # `--focus` with no REF: the last session opened
+
+RED = "\033[0;31m"
+YELLOW = "\033[1;33m"
+GREEN = "\033[0;32m"
+BLUE = "\033[0;34m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+
+def error(msg: str) -> None:
+    print(f"{RED}{BOLD}✖  ERROR:{RESET}{RED} {msg}{RESET}", file=sys.stderr)
+
+
+def warn(msg: str) -> None:
+    print(f"{YELLOW}⚠  {msg}{RESET}", file=sys.stderr)
+
+
+def success(msg: str) -> None:
+    print(f"{GREEN}✔  {msg}{RESET}")
+
+
+def info(msg: str) -> None:
+    print(f"{BLUE}→{RESET}  {msg}")
+
+
+def detail(msg: str) -> None:
+    print(f"   {msg}")
+
+
+# --- discovery ----------------------------------------------------------------
+
+def find_inventory(home=None, path=None):
+    """Locate session-inventory: PATH first, then the known skill placements."""
+    home = Path(home or Path.home())
+    found = shutil.which("session-inventory", path=path)
+    if found:
+        return found
+    for d in (".claude/skills/session-agent-list", ".agents/skills/session-agent-list"):
+        p = home / d / "scripts" / "session-inventory"
+        if p.is_file() and os.access(p, os.X_OK):
+            return str(p)
+    return None
+
+
+def boot_time():
+    out = subprocess.run(["/usr/sbin/sysctl", "-n", "kern.boottime"], capture_output=True, text=True, check=True).stdout
+    return dt.datetime.fromtimestamp(int(re.search(r"sec = (\d+)", out).group(1))).astimezone()
+
+
+def default_start(boot):
+    """00:00 local time on the day before the boot, whenever the command runs."""
+    day = boot.astimezone().date() - dt.timedelta(days=1)
+    return dt.datetime.combine(day, dt.time(0)).astimezone()
+
+
+def parse_since(value, boot, now=None):
+    """`--since`: None (day before boot), <n>m|h|d|w, or an ISO date or date-time (local time)."""
+    if value is None:
+        return default_start(boot)
+    now = now or dt.datetime.now().astimezone()
+    m = re.fullmatch(r"(\d+)([mhdw])", value)
+    if m:
+        unit = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}[m.group(2)]
+        return now - dt.timedelta(**{unit: int(m.group(1))})
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return dt.datetime.combine(dt.date.fromisoformat(value), dt.time(0)).astimezone()
+    parsed = dt.datetime.fromisoformat(value)  # ValueError on anything else
+    return parsed if parsed.tzinfo else parsed.astimezone()
+
+
+def _layout_ids(path, prefix=""):
+    """Map session id -> 'workspace / tab' for one Herdr layout file."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return {}
+    idx = {}
+    for ws in data.get("workspaces", []):
+        for tab in ws.get("tabs", []):
+            where = f"{prefix}{ws.get('custom_name') or ws.get('id')} / {tab.get('custom_name') or '-'}"
+            for pane in tab.get("panes", {}).values():
+                sid = (pane.get("agent_session") or {}).get("value")
+                if sid:
+                    idx[sid] = where
+                for token in (pane.get("agent_resume") or {}).get("argv", []):
+                    idx[token] = where
+    return idx
+
+
+def _session_dir_ids(session_dir, boot, prefix=""):
+    snap_dir = session_dir / "session-snapshots"
+    snaps = [p for p in snap_dir.glob("*.json") if p.stat().st_mtime < boot.timestamp()] if snap_dir.is_dir() else []
+    idx = {}
+    if snaps:
+        idx.update(_layout_ids(max(snaps, key=lambda p: p.stat().st_mtime), prefix))
+    idx.update(_layout_ids(session_dir / "session.json", prefix))
+    return idx
+
+
+def herdr_index(herdr_dir, boot):
+    """IDs Herdr will restore, across the default and every named Herdr session."""
+    herdr_dir = Path(herdr_dir)
+    idx = _session_dir_ids(herdr_dir, boot)
+    if (herdr_dir / "sessions").is_dir():
+        for d in sorted((herdr_dir / "sessions").iterdir()):
+            if d.is_dir():
+                idx.update(_session_dir_ids(d, boot, prefix=f"{d.name}: "))
+    return idx
+
+
+def is_helper(s):
+    """A run another session started in a throwaway folder; nothing to resume."""
+    label = s.get("title") or s.get("name") or ""  # Codex keeps this text in `name`
+    folder = s.get("spawn_dir") or ""
+    return folder.startswith(HELPER_DIRS) or any(p in folder for p in HELPER_PATH_PARTS) \
+        or label.startswith(HELPER_TITLES)
+
+
+def _parse(ts):
+    return dt.datetime.fromisoformat(ts) if ts else None
+
+
+def select_rows(sessions, boot, start):
+    """Sessions started before boot and active since start, numbered by start time.
+
+    Start time never changes, so resuming a session does not renumber the list.
+    """
+    rows = []
+    for s in sessions:
+        created, updated = _parse(s.get("created")), _parse(s.get("updated"))
+        if created and updated and created < boot and updated >= start:
+            rows.append(s)
+    rows.sort(key=lambda s: (_parse(s["created"]), s["id"]))
+    for n, s in enumerate(rows, 1):
+        s["n"] = n
+    return rows
+
+
+def short_ids(rows, minimum=8):
+    """Shortest unique ID prefix per row, at least `minimum` characters (git-style)."""
+    ids = [s["id"] for s in rows]
+    out = {}
+    for sid in ids:
+        k = min(minimum, len(sid))
+        while k < len(sid) and any(o != sid and o.startswith(sid[:k]) for o in ids):
+            k += 1
+        out[sid] = sid[:k]
+    return out
+
+
+def about(s):
+    text = " ".join((s.get("title") or s.get("name") or "(untitled)").split())
+    return text if len(text) <= ABOUT_MAX else text[:ABOUT_MAX - 1] + "…"
+
+
+def folder_missing(s):
+    d = s.get("spawn_dir")
+    return bool(d) and not Path(d).is_dir()
+
+
+def refusal(s, action):
+    """Why Rex or Herdr may not open this session; None when allowed. Print is always allowed."""
+    if action == "print":
+        return None
+    if s.get("live") == "yes":
+        return "already running"
+    if s.get("herdr"):
+        return f"already in Herdr ({s['herdr']})"
+    if folder_missing(s):
+        return f"its folder no longer exists: {s['spawn_dir']}"
+    return None
+
+
+def state_label(s):
+    if s.get("live") == "yes":
+        return "RUNNING"
+    if s.get("live") == "unknown":
+        return "maybe running"
+    if s.get("herdr"):
+        return "in Herdr"
+    if folder_missing(s):
+        return "folder missing"
+    return ""
+
+
+# --- command building ---------------------------------------------------------
+
+@dataclasses.dataclass
+class HerdrTarget:
+    label: str
+    workspace_id: str | None = None  # None: the workspace is created on first use
+    session: str | None = None  # a named Herdr session; None is the default one
+
+
+@dataclasses.dataclass
+class RexTarget:
+    label: str
+    session_id: str | None = None  # None (and not current): the session is created on first use
+    current: bool = False  # the session lost-sessions runs in; with no session_id, Rex's active one
+    current_label: str | None = None
+
+
+def where(t):
+    """How a destination reads in the menu's Where column and the picker."""
+    if isinstance(t, RexTarget) and t.current:
+        name = t.current_label or "Rex's active session"
+        return f"current ({name})"
+    known = t.session_id if isinstance(t, RexTarget) else t.workspace_id
+    return t.label if known else f"{t.label} (new)"
+
+
+def resume_args(s):
+    sid = s["id"]
+    return {"claude": ["claude", "--resume", sid], "codex": ["codex", "resume", sid],
+            "muse": ["muse", "resume", sid], "opencode": ["opencode", "--session", sid]}[s["tool"]]
+
+
+def resume_command(s):
+    """The inventory's resume command, or one built from the ID when it withholds it (e.g. running)."""
+    if s.get("resume"):
+        return s["resume"]
+    argv = shlex.join(resume_args(s))
+    d = s.get("spawn_dir")
+    return f"cd {shlex.quote(d)} && {argv}" if d and s["tool"] != "codex" else argv
+
+
+def window_label(s):
+    return f"#{s['n']} {about(s)[:40]}"
+
+
+def agent_name(s):
+    """Unique per session: Codex and Muse IDs are time-ordered, so their prefixes collide."""
+    return f"lost-{s['tool']}-{hashlib.sha1(s['id'].encode()).hexdigest()[:10]}"
+
+
+def plan(s, action, target):
+    """The commands an action runs. `{pane}`, `{tab}`, `{window}` are filled in from earlier responses."""
+    cwd = s.get("spawn_dir") or str(Path.home())
+    label = window_label(s)
+    if action == "rex":
+        if not (target.session_id or target.current):
+            return [["rex", "session", "new", target.label, "--json", "--window", label, "-c", cwd,
+                     "--interactive", "--", "zsh", "-c", resume_command(s)]]
+        scope = ["-s", target.session_id] if target.session_id else []  # unscoped rename fails across sessions
+        return [["rex", "run", *scope, "--json", "--focus=false", "--interactive", "--label", label, "-c", cwd,
+                 "--", "zsh", "-c", resume_command(s)],
+                ["rex", "window", "rename", *scope, "{window}", label]]
+    if action != "herdr":
+        return []
+    herdr = ["herdr"] + (["--session", target.session] if target.session else [])
+    if target.workspace_id:
+        steps = [herdr + ["tab", "create", "--workspace", target.workspace_id, "--cwd", cwd,
+                          "--label", label, "--no-focus"]]
+    else:
+        steps = [herdr + ["workspace", "create", "--label", target.label, "--cwd", cwd, "--no-focus"],
+                 herdr + ["tab", "rename", "{tab}", label]]
+    argv = resume_args(s)
+    steps.append(herdr + ["agent", "start", agent_name(s), "--kind", s["tool"], "--pane", "{pane}", "--"]
+                 + argv[1:])
+    if s["tool"] in REPORT_TOOLS:
+        steps.append(herdr + ["pane", "report-agent", "{pane}", "--source", LOG_SOURCE, "--agent", s["tool"],
+                              "--state", "idle", "--agent-session-id", s["id"], "--"] + argv)
+    return steps
+
+
+def _verb(step):
+    """The command's own words, e.g. ["tab", "rename"], skipping a leading `--session NAME` or `-s ID`."""
+    words = step[1:]
+    if words[:1] in (["--session"], ["-s"]):
+        words = words[2:]
+    return words[:2]
+
+
+def _display(step, fills=None):
+    fills = fills or {}
+    return " ".join(fills.get(t) or PLACEHOLDERS.get(t) or shlex.quote(t) for t in step)
+
+
+def preview(s, action, target):
+    if action == "print":
+        return resume_command(s)
+    if action not in ACTIONS:
+        return "(no action — press p to print, r for Rex, h for Herdr)"
+    return "\n".join(_display(step) for step in plan(s, action, target))
+
+
+# --- execution ----------------------------------------------------------------
+
+def _run_json(step):
+    """Run one command; return (exit code, stdout JSON object, error object). Never raises."""
+    try:
+        proc = subprocess.run(step, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        return 127, {}, {"code": "not_found", "message": str(exc)}
+    try:
+        data = json.loads(proc.stdout) if proc.stdout.strip() else {}
+    except ValueError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    err = {}
+    if proc.returncode:
+        try:
+            raw = json.loads(proc.stderr).get("error")
+        except (ValueError, AttributeError):
+            raw = None
+        err = raw if isinstance(raw, dict) else {
+            "message": str(raw) if raw else (proc.stderr.strip() or f"exit {proc.returncode}")}
+    return proc.returncode, data, err
+
+
+def _result(data):
+    r = data.get("result", data)
+    return r if isinstance(r, dict) else {}
+
+
+def execute(s, action, target):
+    """Run one action and return its history entry (not yet logged)."""
+    entry = {"time": dt.datetime.now().astimezone().isoformat(timespec="seconds"), "action": action,
+             "tool": s["tool"], "id": s["id"], "about": about(s), "dir": s.get("spawn_dir"),
+             "commands": [], "opened": {}, "result": "ok", "note": ""}
+    if action == "print":
+        entry["commands"] = [resume_command(s)]
+        if folder_missing(s):
+            entry["note"] = f"its folder no longer exists: {s['spawn_dir']}"
+        return entry
+    why = refusal(s, action)
+    if why:
+        entry.update(result="skipped", note=why)
+        return entry
+    fills, notes = {}, []
+    for step in plan(s, action, target):
+        entry["commands"].append(_display(step, fills))
+        verb = _verb(step)
+        cosmetic = verb[1:] == ["rename"]  # naming a tab or window; the session is already open
+        if any(t in PLACEHOLDERS and not fills.get(t) for t in step):
+            if cosmetic:
+                notes.append("could not name it: no ID in the previous response")
+                continue
+            entry["result"] = "failed"
+            notes.append(f"no value for a placeholder in: {_display(step, fills)}")
+            break
+        code, data, err = _run_json([fills.get(t, t) for t in step])
+        result = _result(data)
+        if code == 0 and "root_pane" in result and isinstance(result["root_pane"], dict):
+            pane = result["root_pane"]
+            fills["{pane}"], fills["{tab}"] = pane.get("pane_id"), pane.get("tab_id")
+            target.workspace_id = target.workspace_id or pane.get("workspace_id")
+            entry["opened"] = {"herdr_workspace": target.workspace_id, "herdr_tab": pane.get("tab_id"),
+                               "herdr_pane": pane.get("pane_id")}
+        elif code == 0 and result.get("session_id"):  # rex session new: the first window comes with it
+            target.session_id = result["session_id"]
+            first = (result.get("initial_windows") or [{}])[0]
+            entry["opened"] = {"rex_session": target.session_id, "rex_window": first.get("window_id")}
+        elif code == 0 and result.get("window_id"):
+            fills["{window}"] = result["window_id"]
+            entry["opened"] = ({"rex_session": target.session_id} if target.session_id else {}) | {
+                "rex_window": result["window_id"]}
+        elif code and err.get("code") == "agent_not_ready":
+            entry["result"] = "blocked"
+            notes.append(f"opened in Herdr pane {fills.get('{pane}')}, waiting at a startup prompt "
+                         "(usually folder trust); answer it in Herdr")
+        elif code and cosmetic:
+            notes.append(f"could not name it: {err.get('message', '')}".strip())
+        elif code:
+            entry["result"] = "failed"
+            notes.append(f"{_display(step, fills)}: {err.get('code', '')} {err.get('message', '')}".strip())
+            break
+        elif verb[1:] in (["create"], ["new"]):
+            entry["result"] = "failed"
+            notes.append(f"{_display(step, fills)}: nothing opened according to the response")
+            break
+    entry["note"] = "; ".join(notes)
+    return entry
+
+
+def focus_command(entry, herdr_session=None):
+    """The command that brings an opened session to the front, or None when nothing was opened.
+
+    `herdr tab focus` also switches to the tab's workspace; Rex's app action `session.select`
+    switches sessions, which `rex focus` alone does not.
+    """
+    opened = entry.get("opened") or {}
+    if entry.get("result") not in ("ok", "blocked"):
+        return None
+    if entry.get("action") == "herdr" and opened.get("herdr_tab"):
+        return ["herdr"] + (["--session", herdr_session] if herdr_session else []) + [
+            "tab", "focus", opened["herdr_tab"]]
+    if entry.get("action") == "rex" and opened.get("rex_window"):
+        if opened.get("rex_session"):
+            return ["rex", "do", "session.select", f"session_id={opened['rex_session']}",
+                    f"window_id={opened['rex_window']}"]
+        return ["rex", "focus", opened["rex_window"]]
+    return None
+
+
+def focus(entry, herdr_session=None):
+    """Bring an opened session to the front; returns its own history entry."""
+    out = {"time": dt.datetime.now().astimezone().isoformat(timespec="seconds"), "action": "focus",
+           "tool": entry.get("tool"), "id": entry.get("id"), "about": entry.get("about"), "dir": entry.get("dir"),
+           "commands": [], "opened": entry.get("opened") or {}, "result": "ok", "note": ""}
+    step = focus_command(entry, herdr_session)
+    if not step:
+        out.update(result="skipped", note="nothing to focus: the session was not opened")
+        return out
+    out["commands"] = [_display(step)]
+    code, _, err = _run_json(step)
+    if code:
+        out.update(result="failed", note=f"{err.get('code', '')} {err.get('message', '')}".strip())
+    return out
+
+
+def run_focus(entry, herdr_session=None):
+    f = focus(entry, herdr_session)
+    append_log(f)
+    (success if f["result"] == "ok" else warn)(f"focus {f['result']}" + (f": {f['note']}" if f["note"] else ""))
+    return f
+
+
+# --- state: history log and saved listing -------------------------------------
+
+def state_dir():
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(base) / "lost-sessions"
+
+
+def log_path():
+    return state_dir() / "history.jsonl"
+
+
+def listing_path():
+    return state_dir() / "last-list.json"
+
+
+def append_log(entry):
+    p = log_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def read_log():
+    try:
+        lines = log_path().read_text().splitlines()
+    except OSError:
+        return []
+    entries = []
+    for line in lines:
+        try:
+            entries.append(json.loads(line))
+        except ValueError:
+            continue
+    return entries
+
+
+def save_listing(rows, start):
+    p = listing_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"saved": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                             "since": start.isoformat(timespec="seconds"),
+                             "rows": [{"n": s["n"], "id": s["id"], "about": about(s)} for s in rows]}))
+
+
+def load_listing():
+    try:
+        data = json.loads(listing_path().read_text())
+        return data if isinstance(data, dict) and isinstance(data.get("rows"), list) else None
+    except (OSError, ValueError):
+        return None
+
+
+def format_entry(e):
+    where = ", ".join(f"{k}={v}" for k, v in (e.get("opened") or {}).items())
+    lines = [(f"{e.get('time', '?')}  {e.get('action', '?'):<5}  {e.get('result', '?'):<7}  "
+              f"{e.get('tool', '?')}  {e.get('id', '?')}"),
+             f"    about: {e.get('about', '')}", f"    dir:   {e.get('dir', '')}"]
+    lines += [f"    cmd:   {c}" for c in e.get("commands", [])]
+    if where:
+        lines.append(f"    open:  {where}")
+    if e.get("note"):
+        lines.append(f"    note:  {e['note']}")
+    return "\n".join(lines)
+
+
+def run_action(s, action, target):
+    if action != "print" and s.get("live") == "unknown":
+        warn(f"#{s['n']} may already be running ({s.get('live_basis') or 'liveness unknown'}); opening anyway")
+    entry = execute(s, action, target)
+    append_log(entry)
+    report = success if entry["result"] in ("ok", "blocked") else warn
+    report(f"{action} #{s['n']} {entry['result']}; logged to {log_path()}")
+    print(format_entry(entry))
+    return entry
+
+
+def exit_status(entries):
+    """1 when any action failed or was skipped; blocked (opened, waiting at a prompt) counts as done."""
+    return 1 if any(e["result"] in ("failed", "skipped") for e in entries) else 0
+
+
+# --- Herdr workspaces ---------------------------------------------------------
+
+def herdr_workspaces(session=None):
+    """(workspaces, available). `available` is False when Herdr could not be reached."""
+    code, data, _ = _run_json(["herdr"] + (["--session", session] if session else []) + ["workspace", "list"])
+    ws = _result(data).get("workspaces", [])
+    return (ws if isinstance(ws, list) else []), code == 0
+
+
+def resolve_target(label, session, workspaces):
+    ws = next((w for w in workspaces if w.get("label") == label), None)
+    return HerdrTarget(label, ws["workspace_id"] if ws else None, session)
+
+
+def rex_sessions():
+    """(sessions, available)."""
+    code, data, _ = _run_json(["rex", "session", "list", "--json"])
+    ss = data.get("sessions", [])
+    return (ss if isinstance(ss, list) else []), code == 0
+
+
+class Destinations:
+    """Herdr workspaces and Rex sessions, one shared target per destination.
+
+    Rows sent to the same new workspace or session share its target, so the first
+    row creates it and the rest open inside it. Existing ones are keyed by ID, because
+    two Herdr workspaces (or Rex sessions) can carry the same label.
+    """
+
+    ID_KEYS: ClassVar[dict] = {"herdr": "workspace_id", "rex": "session_id"}
+
+    def __init__(self, workspace, rex_session, herdr_session, workspaces, sessions, rex_current):
+        self.defaults = {"herdr": workspace, "rex": rex_session}
+        self.herdr_session, self.workspaces, self.sessions = herdr_session, workspaces, sessions
+        self.rex_current = rex_current
+        self.pool = {}
+
+    def existing(self, kind):
+        return self.workspaces if kind == "herdr" else self.sessions
+
+    def _for(self, kind, entry):
+        """The shared target for one existing workspace or session."""
+        key = (kind, "id", entry.get(self.ID_KEYS[kind]))
+        if key not in self.pool:
+            self.pool[key] = (HerdrTarget(entry.get("label"), entry.get("workspace_id"), self.herdr_session)
+                              if kind == "herdr" else RexTarget(entry.get("label"), entry.get("session_id")))
+        return self.pool[key]
+
+    def ambiguous(self, kind, label):
+        """IDs of the existing destinations sharing `label`, when more than one does."""
+        ids = [e.get(self.ID_KEYS[kind]) for e in self.existing(kind) if e.get("label") == label]
+        return ids if len(ids) > 1 else []
+
+    def get(self, kind, label):
+        """A destination by ID or label; the first match for a shared label, else a new one."""
+        if kind == "rex" and label == CURRENT:
+            key = (kind, CURRENT)
+            if key not in self.pool:
+                mine = next((x for x in self.sessions if x.get("session_id") == self.rex_current), {})
+                self.pool[key] = RexTarget(CURRENT, self.rex_current or None, True, mine.get("label"))
+            return self.pool[key]
+        idk = self.ID_KEYS[kind]
+        hit = next((e for e in self.existing(kind) if e.get(idk) == label), None) or \
+            next((e for e in self.existing(kind) if e.get("label") == label), None)
+        if hit:
+            return self._for(kind, hit)
+        key = (kind, "new", label)
+        if key not in self.pool:
+            self.pool[key] = HerdrTarget(label, None, self.herdr_session) if kind == "herdr" else RexTarget(label)
+        return self.pool[key]
+
+    def default(self, kind):
+        return self.get(kind, self.defaults[kind])
+
+    def choices(self, kind):
+        """The default first, then (Rex) the current session, then the other existing ones."""
+        candidates = [self.default(kind)] + ([self.get("rex", CURRENT)] if kind == "rex" else [])
+        candidates += [self._for(kind, e) for e in self.existing(kind)
+                       if not (kind == "rex" and e.get("session_id") == self.rex_current)]
+        out = []
+        for t in candidates:
+            if all(t is not o for o in out):
+                out.append(t)
+        return out
+
+    def describe(self, t):
+        """where(t), plus the ID when another destination shares the label."""
+        text = where(t)
+        known = t.session_id if isinstance(t, RexTarget) else t.workspace_id
+        kind = "rex" if isinstance(t, RexTarget) else "herdr"
+        if known and not (isinstance(t, RexTarget) and t.current) and self.ambiguous(kind, t.label):
+            text += f" ({known})"
+        return text
+
+
+def load_destinations(workspace, rex_session, herdr_session=None):
+    workspaces, _ = herdr_workspaces(herdr_session)
+    sessions, _ = rex_sessions()
+    return Destinations(workspace, rex_session, herdr_session, workspaces, sessions,
+                        os.environ.get("REX_SESSION") or None)
+
+
+# --- menu ---------------------------------------------------------------------
+
+def hidden_by_default(s):
+    """Running or already in Herdr: only Print applies, so `--all` / `a` reveal them on request."""
+    return bool(s.get("herdr")) or s.get("live") == "yes"
+
+
+def make_menu(rows, dests, herdr_ok=True, show_all=False):
+    """Build the Textual app. Textual is imported here so other commands start fast.
+
+    State is keyed by session ID, so showing or hiding rows never moves a choice to another session.
+    """
+    from rich.text import Text
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Vertical
+    from textual.screen import ModalScreen
+    from textual.widgets import DataTable, Footer, OptionList, Static
+
+    class Table(DataTable, inherit_bindings=False):  # drop Enter so it reaches the menu's Run binding
+        BINDINGS: ClassVar[list] = [b for b in DataTable.BINDINGS if getattr(b, "key", None) != "enter"]
+
+    class Picker(ModalScreen):
+        CSS = """
+        Picker { align: center middle; }
+        #box { width: 70%; height: auto; max-height: 80%; border: round $accent; padding: 0 1; }
+        #title { height: auto; margin-bottom: 1; }
+        #box OptionList { height: auto; max-height: 60vh; }
+        """
+        BINDINGS: ClassVar[list] = [Binding("escape", "dismiss_none", "Cancel")]
+
+        def __init__(self, title, choices, start):
+            super().__init__()
+            self.title_text, self.choices, self.start = title, choices, start
+
+        def compose(self) -> ComposeResult:
+            with Vertical(id="box"):
+                yield Static(self.title_text, id="title", markup=False)
+                yield OptionList(*[Text(c) for c in self.choices])
+
+        def on_mount(self):
+            self.query_one(OptionList).highlighted = self.start
+
+        def on_option_list_option_selected(self, event):
+            self.dismiss(event.option_index)
+
+        def action_dismiss_none(self):
+            self.dismiss(None)
+
+    labels = {None: "—", "print": "Print", "rex": "Rex", "herdr": "Herdr"}
+    kinds = {"rex": "Rex session", "herdr": "Herdr workspace"}
+    shorts = short_ids(rows)
+
+    class Menu(App):
+        CSS = "#preview { border: round $accent; padding: 0 1; height: auto; max-height: 12; } #top { padding: 0 1; }"
+        BINDINGS: ClassVar[list] = [Binding("p", "set('print')", "Print"), Binding("r", "set('rex')", "Rex"),
+                                    Binding("h", "set('herdr')", "Herdr"), Binding("x", "set('')", "Clear"),
+                                    Binding("space", "cycle", "Cycle"), Binding("w", "where", "Where"),
+                                    Binding("W", "where_all", "Where: all like this"),
+                                    Binding("a", "toggle_all", "Running"), Binding("f", "focus_mark", "Focus"),
+                                    Binding("enter", "confirm", "Run"), Binding("q", "quit_none", "Quit"),
+                                    Binding("escape", "quit_none", "Quit", show=False)]
+
+        def __init__(self):
+            super().__init__()
+            self.rows, self.dests, self.show_all = rows, dests, show_all
+            self.by_id = {s["id"]: s for s in rows}
+            self.actions = {}  # session id -> action
+            self.targets = {}  # (session id, kind) -> destination; unset means the kind's default
+            self.focus_id = None  # the one session brought to the front after everything runs
+
+        def compose(self) -> ComposeResult:
+            yield Static(id="top", markup=False)
+            yield Table(cursor_type="row", id="table")
+            yield Static(id="preview", markup=False)
+            yield Footer()
+
+        def on_mount(self):
+            t = self.query_one(Table)
+            for key, label in (("n", "#"), ("id", "ID"), ("tool", "Tool"), ("action", "Action"),
+                               ("where", "Where"), ("when", "Last active"), ("state", "State"),
+                               ("about", "About")):
+                t.add_column(label, key=key)
+            self.fill_table()
+            t.focus()
+
+        def shown(self):
+            return [s for s in self.rows if self.show_all or not hidden_by_default(s)]
+
+        def fill_table(self, keep=None):
+            t = self.query_one(Table)
+            t.clear()
+            for s in self.shown():
+                sid = s["id"]
+                t.add_row(Text(str(s["n"])), Text(shorts[sid]), Text(s["tool"]),
+                          Text(self.action_text(sid)), Text(self.where_text(sid)),
+                          Text(_parse(s["updated"]).astimezone().strftime("%b %d %H:%M")),
+                          Text(state_label(s)), Text(about(s)[:70]), key=sid)
+            ids = [s["id"] for s in self.shown()]
+            if keep in ids:
+                t.move_cursor(row=ids.index(keep))
+            self.refresh_view()
+
+        def current_id(self):
+            shown = self.shown()
+            if not shown:
+                return None
+            return shown[min(self.query_one(Table).cursor_row, len(shown) - 1)]["id"]
+
+        def target_for(self, sid, kind=None):
+            kind = kind or self.actions.get(sid)
+            if kind not in kinds:
+                return None
+            return self.targets.get((sid, kind)) or self.dests.default(kind)
+
+        def action_text(self, sid):
+            text = labels[self.actions.get(sid)]
+            return f"{text} \u25b8 focus" if sid == self.focus_id else text
+
+        def where_text(self, sid):
+            t = self.target_for(sid)
+            return self.dests.describe(t) if t else "—"
+
+        def planned_target(self, sid):
+            """The target row `sid` will see when actions run in row order: a new destination an
+            earlier row creates shows as a placeholder."""
+            kind = self.actions.get(sid)
+            t = self.target_for(sid)
+            if t is None:
+                return None
+            new = (t.workspace_id is None) if kind == "herdr" else not (t.session_id or t.current)
+            if new:
+                for s in self.rows:
+                    if s["id"] == sid:
+                        break
+                    if self.actions.get(s["id"]) == kind and self.target_for(s["id"]) is t:
+                        return dataclasses.replace(t, **({"workspace_id": "{workspace}"} if kind == "herdr"
+                                                         else {"session_id": "{session}"}))
+            return t
+
+        def preview_text(self):
+            sid = self.current_id()
+            if sid is None:
+                return ""
+            return preview(self.by_id[sid], self.actions.get(sid), self.planned_target(sid))
+
+        def refresh_view(self):
+            chosen = [sid for sid, a in self.actions.items() if a]
+            visible = {s["id"] for s in self.shown()}
+            off = sum(1 for sid in chosen if sid not in visible)
+            parts = [f"{len(self.shown())} sessions", f"{len(chosen)} chosen" + (f" ({off} hidden)" if off else ""),
+                     "running: shown" if self.show_all else "running: hidden"]
+            if self.focus_id:
+                parts.append(f"focus: #{self.by_id[self.focus_id]['n']}")
+            if not herdr_ok:
+                parts.append("Herdr not available")
+            self.query_one("#top", Static).update(Text(" · ".join(parts)))
+            self.query_one("#preview", Static).update(Text(self.preview_text()))
+
+        def update_row(self, sid):
+            t = self.query_one(Table)
+            if sid in {s["id"] for s in self.shown()}:
+                t.update_cell(sid, "action", Text(self.action_text(sid)), update_width=True)
+                t.update_cell(sid, "where", Text(self.where_text(sid)), update_width=True)
+
+        def on_data_table_row_highlighted(self, _event):
+            self.refresh_view()
+
+        def action_set(self, action):
+            sid = self.current_id()
+            if sid is None:
+                return
+            if action == "herdr" and not herdr_ok:
+                self.bell()
+                self.notify("Herdr is not available", markup=False)
+                return
+            why = refusal(self.by_id[sid], action) if action else None
+            if why:
+                self.bell()
+                self.notify(f"Print only: {why}", markup=False)
+                return
+            self.actions[sid] = action or None
+            if sid == self.focus_id and self.actions[sid] not in kinds:
+                self.focus_id = None  # only an opened session can be focused
+            self.update_row(sid)
+            self.refresh_view()
+
+        def action_cycle(self):
+            sid = self.current_id()
+            if sid is None:
+                return
+            order = [None, "print", "rex", "herdr"]
+            nxt = order[(order.index(self.actions.get(sid)) + 1) % len(order)]
+            while nxt and (refusal(self.by_id[sid], nxt) or (nxt == "herdr" and not herdr_ok)):
+                nxt = order[(order.index(nxt) + 1) % len(order)]
+            self.action_set(nxt or "")
+
+        def action_where(self):
+            sid = self.current_id()
+            kind = self.actions.get(sid) if sid else None
+            if kind not in kinds:
+                self.bell()
+                self.notify("Choose r (Rex) or h (Herdr) for this row first", markup=False)
+                return
+            options = self.dests.choices(kind)
+            current = self.target_for(sid)
+            start = next((i for i, t in enumerate(options) if t is current), 0)
+
+            def chosen(index):
+                if index is None:
+                    return
+                self.targets[(sid, kind)] = options[index]
+                self.update_row(sid)
+                self.refresh_view()
+
+            self.push_screen(Picker(f"Open #{self.by_id[sid]['n']} in which {kinds[kind]}?",
+                                    [self.dests.describe(t) for t in options], start), chosen)
+
+        def action_where_all(self):
+            sid = self.current_id()
+            kind = self.actions.get(sid) if sid else None
+            if kind not in kinds:
+                self.bell()
+                return
+            t = self.target_for(sid)
+            for other, a in self.actions.items():
+                if a == kind:
+                    self.targets[(other, kind)] = t
+                    self.update_row(other)
+            self.notify(f"Every {labels[kind]} row now opens in {self.dests.describe(t)}", markup=False)
+            self.refresh_view()
+
+        def action_focus_mark(self):
+            sid = self.current_id()
+            if sid is None or self.actions.get(sid) not in kinds:
+                self.bell()
+                self.notify("Only a session opened in Rex or Herdr can be focused", markup=False)
+                return
+            previous, self.focus_id = self.focus_id, (None if self.focus_id == sid else sid)
+            for other in {previous, sid} - {None}:
+                self.update_row(other)
+            self.refresh_view()
+
+        def action_toggle_all(self):
+            keep = self.current_id()
+            self.show_all = not self.show_all
+            self.fill_table(keep)
+
+        def action_confirm(self):
+            self.exit([(s, self.actions[s["id"]], self.target_for(s["id"]))
+                       for s in self.rows if self.actions.get(s["id"])])
+
+        def action_quit_none(self):
+            self.exit([])
+
+    return Menu()
+
+
+# --- CLI ----------------------------------------------------------------------
+
+def load_rows(since):
+    """(boot, start, rows). Exits 2 on a bad --since and 1 when the inventory gives nothing usable."""
+    si = find_inventory()
+    if not si:
+        error("session-inventory not found; install the session-agent-list skill")
+        sys.exit(1)
+    boot = boot_time()
+    try:
+        start = parse_since(since, boot)
+    except ValueError:
+        error(f"--since {since!r}: use a date (2026-11-09), a date-time, or <n>m|h|d|w (e.g. 3d)")
+        sys.exit(2)
+    proc = subprocess.run([si, "list", "--json", "--since", start.isoformat(timespec="seconds")],
+                          capture_output=True, text=True, check=False)
+    try:
+        inv = json.loads(proc.stdout)
+    except ValueError:
+        inv = None
+    if proc.returncode not in (0, 1) or not isinstance(inv, dict):
+        error(f"session-inventory failed (exit {proc.returncode}): {proc.stderr.strip()}")
+        sys.exit(1)
+    if proc.returncode == 1:  # partial failure: one store unreadable, the others still listed
+        for line in proc.stderr.strip().splitlines():
+            warn(f"session-inventory: {line}")
+        warn("some sessions may be missing from this list")
+    herdr = herdr_index(Path.home() / ".config" / "herdr", boot)
+    rows = select_rows(inv.get("sessions", []), boot, start)
+    for s in rows:
+        s["herdr"] = herdr.get(s["id"])
+    return boot, start, rows
+
+
+def visible(rows, args, show_all=None):
+    show_all = args.all if show_all is None else show_all
+    def keep(s):
+        if not args.include_helpers and is_helper(s):
+            return False
+        return show_all or not hidden_by_default(s)
+    return [s for s in rows if keep(s)]
+
+
+def cmd_list(args):
+    boot, start, rows = load_rows(args.since)
+    shown = visible(rows, args)
+    shorts = short_ids(rows)
+    lost = [s for s in rows if not s["herdr"] and not is_helper(s) and s.get("live") != "yes"]
+    print(f"Boot: {boot:%a %b %d %H:%M}   sessions started before it and active since {start:%a %b %d %H:%M}")
+    print(f"{len(rows)} sessions; {len(lost)} lost (not in Herdr, not running, not helper runs)\n")
+    for s in shown:
+        state = state_label(s) or "closed"
+        where = f"IN HERDR: {s['herdr']}" if s["herdr"] else "not in Herdr"
+        print(f"[{s['n']:>2}] {shorts[s['id']]}  {s['tool']:<8} {where}  |  {state}  |  "
+              f"started {_parse(s['created']).astimezone():%b %d}  "
+              f"last active {_parse(s['updated']).astimezone():%b %d %H:%M}")
+        print(f"     about: {about(s)}")
+        print(f"     id:    {s['id']}")
+        print(f"     dir:   {s.get('spawn_dir')}")
+        print(f"     open:  {resume_command(s)}\n")
+    save_listing(shown, start)
+    return 0
+
+
+def resolve_refs(refs, rows, listing):
+    """Map each REF (a number from the saved listing, or a full or unique-prefix session ID) to a row."""
+    by_id = {s["id"]: s for s in rows}
+    picked, problems = [], []
+    for ref in refs:
+        if re.fullmatch(r"\d{1,4}", ref):
+            if not listing:
+                problems.append(f"#{ref}: no saved listing; run `lost-sessions list` first, or use a session ID")
+                continue
+            hit = next((r for r in listing["rows"] if r.get("n") == int(ref)), None)
+            if not hit:
+                problems.append(f"#{ref} is not in the last listing")
+            elif hit["id"] not in by_id:
+                problems.append(f"#{ref} ({hit['id']}) is no longer in the window")
+            else:
+                picked.append(by_id[hit["id"]])
+            continue
+        matches = [s for s in rows if s["id"].startswith(ref)]
+        if len(matches) == 1:
+            picked.append(matches[0])
+        elif not matches:
+            problems.append(f"{ref}: no session ID starts with this")
+        else:
+            problems.append(f"{ref} matches {len(matches)} sessions: " + ", ".join(s["id"] for s in matches[:5]))
+    return picked, problems
+
+
+def cmd_open(args):
+    action = "print" if args.print else ("rex" if args.rex else "herdr")
+    split = [r.partition("@") for r in args.refs]  # 29@codex: session 29 into the `codex` workspace or session
+    refs, wanted = [ref for ref, _, _ in split], [dest if at else None for _, at, dest in split]
+    if action == "print" and any(w is not None for w in wanted):
+        error("REF@DEST names a Herdr workspace or Rex session; it does not apply to --print")
+        return 2
+    if any(w == "" for w in wanted):
+        error("REF@ needs a destination after the @, e.g. 29@recovered")
+        return 2
+    if args.focus is not None and action == "print":
+        error("--focus brings an opened session to the front; it does not apply to --print")
+        return 2
+    if args.focus not in (None, LAST) and args.focus not in refs:
+        error(f"--focus {args.focus}: name one of the REFs being opened ({', '.join(refs)})")
+        return 2
+    listing = load_listing()
+    numeric = any(re.fullmatch(r"\d{1,4}", r) for r in refs)
+    since = args.since if args.since or not (numeric and listing) else listing.get("since")
+    _, _, rows = load_rows(since)
+    picked, problems = resolve_refs(refs, rows, listing)
+    if action == "rex" and CURRENT in [args.rex_session, *wanted] and not os.environ.get("REX_SESSION"):
+        warn("not running inside Rex: `current` opens in the session the Rex app is showing")
+    for p in problems:
+        error(p)
+    if problems:
+        return 2
+    if numeric and listing:
+        saved = _parse(listing.get("saved"))
+        if saved and dt.datetime.now().astimezone() - saved > LISTING_MAX_AGE:
+            warn(f"numbers come from a listing saved {saved:%b %d %H:%M}; run `lost-sessions list` to refresh")
+    dests = load_destinations(args.workspace, args.rex_session, args.herdr_session) if action != "print" else None
+    if dests:
+        for label in dict.fromkeys(w or dests.defaults[action] for w in wanted):
+            ids = dests.ambiguous(action, label)
+            if ids:
+                error(f"{label!r} names {len(ids)} {'workspaces' if action == 'herdr' else 'sessions'} "
+                      f"({', '.join(ids)}); use the ID instead, e.g. REF@{ids[0]}")
+                return 2
+    entries = []
+    for s, dest in zip(picked, wanted, strict=True):
+        target = (dests.get(action, dest) if dest else dests.default(action)) if dests else None
+        info(f"#{s['n']} → {s['id']}  {about(s)}" + (f"  → {dests.describe(target)}" if target else ""))
+        entries.append(run_action(s, action, target))
+    if args.focus is not None and entries:
+        opened = [e for e in entries if focus_command(e, args.herdr_session)]
+        pick = (opened[-1] if opened else entries[-1]) if args.focus == LAST else entries[refs.index(args.focus)]
+        run_focus(pick, args.herdr_session)
+    return exit_status(entries)
+
+
+def interactive():
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def cmd_recover(args):
+    if not interactive():
+        error("lost-sessions recover needs a terminal; without one use "
+              "`lost-sessions open REF --print|--rex|--herdr`")
+        return 2
+    _, start, rows = load_rows(args.since)
+    candidates = visible(rows, args, show_all=True)  # `a` in the menu shows or hides the running ones
+    if not visible(rows, args):
+        hidden = len(candidates)
+        info("No lost sessions in this window" + (f" ({hidden} running or in Herdr; --all shows them)." if hidden
+                                                  else " (try --since)."))
+        return 0
+    save_listing(candidates, start)
+    _, herdr_ok = herdr_workspaces(args.herdr_session)
+    dests = load_destinations(args.workspace, args.rex_session, args.herdr_session)
+    menu = make_menu(candidates, dests, herdr_ok, args.all)
+    chosen = menu.run() or []
+    if not chosen:
+        info("Nothing chosen; nothing done.")
+        return 0
+    # Re-check liveness: a session may have been resumed elsewhere while the menu was open.
+    _, _, fresh = load_rows(start.isoformat(timespec="seconds"))
+    live_now = {s["id"]: s.get("live") for s in fresh}
+    entries = []
+    for s, action, target in chosen:
+        if action != "print" and live_now.get(s["id"]) == "yes":
+            s["live"] = "yes"
+        entries.append(run_action(s, action, target))
+    marked = [e for e in entries if e["id"] == menu.focus_id]  # focus last, so it ends up in front
+    if marked:
+        run_focus(marked[0], args.herdr_session)
+    return exit_status(entries)
+
+
+def cmd_workspaces(args):
+    """Where sessions can open: Herdr workspaces, then Rex sessions. The first of each is the default."""
+    _, herdr_ok = herdr_workspaces(args.herdr_session)
+    _, rex_ok = rex_sessions()
+    dests = load_destinations(args.workspace, args.rex_session, args.herdr_session)
+    tabs = {w.get("workspace_id"): w.get("tab_count", 0) for w in dests.workspaces}
+    print("Herdr workspaces (--workspace, or REF@LABEL with --herdr):")
+    if herdr_ok:
+        for i, t in enumerate(dests.choices("herdr")):
+            extra = f"{t.workspace_id:<6} {tabs.get(t.workspace_id, 0)} tabs" if t.workspace_id else \
+                "created on first use"
+            print(f"  {dests.describe(t):<40} {extra}" + ("   (default)" if i == 0 else ""))
+    else:
+        error("could not reach Herdr (`herdr workspace list` failed)")
+    print("\nRex sessions (--rex-session, or REF@LABEL with --rex; `current` is this session):")
+    if rex_ok:
+        for i, t in enumerate(dests.choices("rex")):
+            extra = t.session_id or ("Rex's active session" if t.current else "created on first use")
+            print(f"  {dests.describe(t):<40} {extra}" + ("   (default)" if i == 0 else ""))
+    else:
+        error("could not reach Rex (`rex session list` failed)")
+    return 0 if herdr_ok and rex_ok else 1
+
+
+def cmd_history(args):
+    print(f"Log: {log_path()}", file=sys.stderr if args.json else sys.stdout)
+    entries = read_log()
+    if args.json:
+        for e in entries:
+            print(json.dumps(e))
+    elif not entries:
+        print("No recoveries logged yet.")
+    else:
+        print()
+        print("\n\n".join(format_entry(e) for e in entries))
+    return 0
+
+
+def build_parser():
+    window = argparse.ArgumentParser(add_help=False)
+    window.add_argument("--since", metavar="WHEN",
+                        help="start of the window: a date, a date-time, or <n>m|h|d|w (default: 00:00 on the day "
+                             "before the last boot). Sessions must have started before the boot")
+    shown = window.add_mutually_exclusive_group()
+    shown.add_argument("--all", action="store_true", default=False,
+                       help="also show running and Herdr-tracked sessions (Print only); `a` toggles this in the menu")
+    shown.add_argument("--hide-running", dest="all", action="store_false", default=False,
+                       help="hide running and Herdr-tracked sessions (the default)")
+    window.add_argument("--include-helpers", action="store_true",
+                        help="also show helper runs (scratchpad folders, Codex Companion tasks)")
+    herdr = argparse.ArgumentParser(add_help=False)
+    herdr.add_argument("--workspace", default="recovered", metavar="LABEL",
+                       help="default Herdr workspace (default: recovered, created if missing)")
+    herdr.add_argument("--rex-session", default="recovered", metavar="LABEL",
+                       help="default Rex session (default: recovered, created if missing; `current` is the "
+                            "session you run this in)")
+    herdr.add_argument("--herdr-session", metavar="NAME", help="a named Herdr session instead of the default one")
+
+    p = argparse.ArgumentParser(prog="lost-sessions", description=(
+        "Recover Claude Code, Codex, Muse and OpenCode sessions that started before the last boot "
+        "but that Herdr will not restore."), epilog=f"History log: {log_path()}")
+    sub = p.add_subparsers(dest="command", metavar="COMMAND")
+    sub.add_parser("recover", parents=[window, herdr],
+                   help="interactive menu: choose Print, Rex or Herdr for each lost session").set_defaults(func=cmd_recover)
+    sub.add_parser("list", parents=[window], help="numbered list of lost sessions").set_defaults(func=cmd_list)
+    o = sub.add_parser("open", parents=[window, herdr], help="print or open sessions without the menu",
+                       description="REF is a number from the last `list` or `recover`, or a full or unique-prefix "
+                                   "session ID. REF@DEST opens that session in the Herdr workspace or Rex session "
+                                   "named DEST instead of the default, e.g. 29@codex 31@'tax prep'.")
+    o.add_argument("refs", nargs="+", metavar="REF")
+    how = o.add_mutually_exclusive_group(required=True)
+    how.add_argument("--print", action="store_true", help="print the resume command")
+    how.add_argument("--rex", action="store_true", help="open in a new window in a Rex session")
+    how.add_argument("--herdr", action="store_true", help="open in a Herdr workspace")
+    o.add_argument("--focus", nargs="?", const=LAST, metavar="REF",
+                   help="afterwards, bring REF (default: the last one opened) to the front in Rex or Herdr")
+    o.set_defaults(func=cmd_open)
+    sub.add_parser("workspaces", parents=[herdr],
+                   help="list the Herdr workspaces and Rex sessions you can open sessions in"
+                   ).set_defaults(func=cmd_workspaces)
+    h = sub.add_parser("history", help="show where the log is, then every logged action")
+    h.add_argument("--json", action="store_true", help="print the raw JSON lines (the log location goes to stderr)")
+    h.set_defaults(func=cmd_history)
+    return p
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if not args.command:
+        parser.print_help()
+        return 0
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

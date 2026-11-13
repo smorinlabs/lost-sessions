@@ -9,6 +9,11 @@
 # literal identity tokens: press control files are not rewritten, so a
 # literal would ship stale into every pressed fork (run 4 PROBLEM-21).
 substring_rewrite_fields = ["app_name", "app_name_upper"]
+# tests/oracle/ holds byte-for-byte copies of the pinned scripts this package
+# replaces; the equivalence tests compare against them, so they are never
+# rewritten or scanned. Press accepts single path-component names only.
+extra_exclude_dirs = ["oracle"]
+verify_ignore = ["oracle"]
 extra_exclude_files = [
   "README.md",
   "docs/POST_INIT.md",

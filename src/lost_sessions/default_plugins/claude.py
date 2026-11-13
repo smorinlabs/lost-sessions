@@ -67,6 +67,10 @@ class ClaudeCode(AgentTool):
     name = "claude"
 
     @override
+    def resume_args(self, session: Session) -> list[str]:
+        return ["claude", "--resume", session.id]
+
+    @override
     def scan(self, ctx: ScanContext) -> ScanResult:
         root = ctx.home / ".claude" / "projects"
         if not root.is_dir():

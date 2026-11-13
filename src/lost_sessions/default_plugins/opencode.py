@@ -58,6 +58,10 @@ class OpenCode(AgentTool):
     needs_processes = True
 
     @override
+    def resume_args(self, session: Session) -> list[str]:
+        return ["opencode", "--session", session.id]
+
+    @override
     def scan(self, ctx: ScanContext) -> ScanResult:
         db_path = data_home(ctx.home) / "opencode" / "opencode.db"
         if not db_path.is_file():
