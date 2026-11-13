@@ -87,17 +87,20 @@ class AcmeAgent(AgentTool):
     def scan(self, ctx: ScanContext) -> ScanResult:
         store = ctx.home / ".acme" / "sessions"
         if not store.is_dir():
-            return ScanResult(sessions=[], source=SourceStatus(status="absent", path=str(store)))
+            return ScanResult(
+                sessions=[], source=SourceStatus(status="absent", path=str(store))
+            )
         sessions = []
         for path in sorted(store.glob("*.json")):
             try:
                 sessions.append(self._record(path))
             except RECORD_ERRORS:  # a record of another shape: unreadable, not fatal
                 sessions.append(unreadable_session("acme", path.stem, path))
-        return ScanResult(sessions=sessions, source=SourceStatus(status="ok", path=str(store)))
+        return ScanResult(
+            sessions=sessions, source=SourceStatus(status="ok", path=str(store))
+        )
 
-    def _record(self, path) -> Session:
-        ...  # parse one stored session into a Session
+    def _record(self, path) -> Session: ...  # parse one stored session into a Session
 
     def resume_args(self, session: Session) -> list[str]:
         return ["acme", "resume", session.id]
