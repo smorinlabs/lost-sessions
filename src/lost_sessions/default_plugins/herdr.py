@@ -161,6 +161,9 @@ class Herdr(SessionManager):
     display_name = "Herdr"
     restores = True
     can_open = True
+    menu_key = "h"
+    menu_order = 2
+    new_placeholder = "{workspace}"
     open_help = "open in a Herdr workspace"
     destination_noun = ("workspace", "workspaces")
 

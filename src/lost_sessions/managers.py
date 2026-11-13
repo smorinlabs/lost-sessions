@@ -162,7 +162,11 @@ class SessionManager(ABC):
     # Whether the manager opens sessions: implements destinations() and plan().
     # Only these get an `open --<name>` flag and a `workspaces` section.
     can_open: bool = False
-    open_help: str = ""  # help for `open --<name>`
+    open_help: str = ""
+    menu_key: str = ""  # the `recover` menu key that chooses this manager, e.g. "h"
+    menu_order: int = 100  # where it sits in the menu's cycle after Print
+    # The placeholder a later row shows for a destination an earlier row creates.
+    new_placeholder: str = "{workspace}"  # help for `open --<name>`
     # ("workspace", "workspaces"): what one destination is called in messages
     destination_noun: tuple[str, str] = ("destination", "destinations")
 

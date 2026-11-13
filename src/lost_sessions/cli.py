@@ -41,6 +41,7 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
 
     cli.add_command(_inventory_command(list(agent_tools(manager)), manager))
     for command in (
+        _recover_command(manager),
         _list_command(manager),
         _open_command(manager),
         _workspaces_command(manager),
@@ -423,6 +424,85 @@ def _workspaces_command(manager: PluginManager) -> click.Command:
         callback=command,
         params=params,
         help="list the destinations each session manager can open sessions in",
+    )
+
+
+def interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _recover_command(manager: PluginManager) -> click.Command:
+    managers = _managers(manager)
+
+    def command(
+        since: str | None,
+        show_all: bool,
+        hide_running: bool,
+        include_helpers: bool,
+        **options: object,
+    ) -> None:
+        from lost_sessions import core, history
+        from lost_sessions import menu as menu_module
+
+        _check_exclusive(show_all, hide_running)
+        if not interactive():
+            flags = "|".join(["--print", *(f"--{n}" for n in managers)])
+            core.error(
+                f"lost-sessions recover needs a terminal; without one use "
+                f"`lost-sessions open REF {flags}`"
+            )
+            sys.exit(2)
+        window = core.load_rows(since, manager)
+        rows = window.rows
+        # `a` in the menu shows or hides the running ones
+        candidates = core.visible(rows, show_all=True, include_helpers=include_helpers)
+        if not core.visible(rows, show_all=show_all, include_helpers=include_helpers):
+            hidden = len(candidates)
+            not_in = (
+                " or ".join(core.restoring_managers(manager)) or "a session manager"
+            )
+            core.info(
+                "No lost sessions in this window"
+                + (
+                    f" ({hidden} running or in {not_in}; --all shows them)."
+                    if hidden
+                    else " (try --since)."
+                )
+            )
+            sys.exit(0)
+        history.save_listing(candidates, window.start)
+        dests = {name: m.destinations(options) for name, m in managers.items()}
+        available = {name: d.available for name, d in dests.items()}
+        menu = menu_module.make_menu(candidates, dests, available, show_all, manager)
+        chosen = menu.run() or []
+        if not chosen:
+            core.info("Nothing chosen; nothing done.")
+            sys.exit(0)
+        # Re-check liveness: a session may have been resumed elsewhere meanwhile.
+        fresh = core.load_rows(window.start.isoformat(timespec="seconds"), manager)
+        live_now = {r.session.id: r.session.live for r in fresh.rows}
+        entries = []
+        for r, action, target in chosen:
+            if action != "print" and live_now.get(r.session.id) == "yes":
+                r.session.live = "yes"
+            entries.append(
+                core.run_action(r, action, managers.get(action), target, manager)
+            )
+        marked = [
+            e for e in entries if e.id == menu.focus_id
+        ]  # focus last: it ends in front
+        if marked:
+            core.run_focus(marked[0], options, manager)
+        sys.exit(core.exit_status(entries))
+
+    params = _window_params()
+    for m in managers.values():
+        params += m.click_options()
+    return click.Command(
+        name="recover",
+        callback=command,
+        params=params,
+        help="interactive menu: choose Print or a session manager for each dropped session",
     )
 
 

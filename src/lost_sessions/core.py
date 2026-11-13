@@ -275,6 +275,12 @@ def load_rows(since: str | None, manager: PluginManager = pm) -> Window:
     return Window(boot=boot, start=start, rows=rows)
 
 
+def menu_managers(manager: PluginManager = pm) -> list[SessionManager]:
+    """Managers that open sessions, in the menu's cycle order."""
+    found = [m for m in session_managers(manager).values() if m.can_open]
+    return sorted(found, key=lambda m: (m.menu_order, m.name))
+
+
 def restoring_managers(manager: PluginManager = pm) -> list[str]:
     """Display names of the managers that restore sessions by themselves."""
     return [m.display_name for m in session_managers(manager).values() if m.restores]
@@ -385,8 +391,7 @@ def preview(
         return resume_command(r.session, manager)
     if mgr is None or dest is None:
         keys = ", ".join(
-            f"{m.name[0]} for {m.display_name}"
-            for m in session_managers(manager).values()
+            f"{m.menu_key} for {m.display_name}" for m in menu_managers(manager)
         )
         return f"(no action — press p to print, {keys})"
     return "\n".join(

@@ -122,6 +122,9 @@ class Rex(SessionManager):
     name = "rex"
     display_name = "Rex"
     can_open = True
+    menu_key = "r"
+    menu_order = 1
+    new_placeholder = "{session}"
     open_help = "open in a new window in a Rex session"
     destination_noun = ("session", "sessions")
 
