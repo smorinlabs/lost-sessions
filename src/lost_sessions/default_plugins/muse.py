@@ -78,6 +78,10 @@ class Muse(AgentTool):
     needs_processes = True
 
     @override
+    def resume_args(self, session: Session) -> list[str]:
+        return ["muse", "resume", session.id]
+
+    @override
     def scan(self, ctx: ScanContext) -> ScanResult:
         db_path = data_home(ctx.home) / "muse" / "session-index.db"
         if not db_path.is_file():

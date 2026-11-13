@@ -49,6 +49,13 @@ class AgentTool(ABC):
     def scan(self, ctx: ScanContext) -> ScanResult:
         """Read this agent's store, read-only, and report its sessions."""
 
+    # Whether the resume command runs in the session's folder (`cd DIR && ...`).
+    resume_in_dir: bool = True
+
+    @abstractmethod
+    def resume_args(self, session: Session) -> list[str]:
+        """The command that resumes `session`, e.g. ["codex", "resume", id]."""
+
 
 # --- helpers --------------------------------------------------------------
 
