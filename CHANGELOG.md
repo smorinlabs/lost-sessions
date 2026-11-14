@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/smorinlabs/lost-sessions/compare/v0.2.0...v0.2.1) (2026-11-14)
+
+
+### Dependencies
+
+* **deps:** bump the github-actions group across 1 directory with 2 updates ([07d355e](https://github.com/smorinlabs/lost-sessions/commit/07d355ee5ba13c19a6428b114c3d8e35abd76102))
+* **deps:** bump the runtime group across 1 directory with 2 updates ([e5b0fc4](https://github.com/smorinlabs/lost-sessions/commit/e5b0fc4af26094849849f7d299f29f4eed9b96a3))
+
 ## [0.2.0](https://github.com/smorinlabs/lost-sessions/compare/v0.1.0...v0.2.0) (2026-11-14)
 
 
