@@ -5,3 +5,4 @@
 /.opencode/muse-ci/ @smorin
 /opencode.json @smorin
 /AGENTS.md @smorin
+/.github/CODEOWNERS @smorin

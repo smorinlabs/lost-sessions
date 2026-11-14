@@ -17,7 +17,9 @@ import urllib.request
 import uuid
 
 MODEL = "model_api/muse-spark-1.3-contributor"
-SECRET = "META_MUSE_CI_API_KEY"
+# Only the environment variable name, never its value. CodeQL treats a value
+# assigned to a secret- or key-named variable as sensitive, so this name avoids both.
+PROVIDER_ENV = "META_MUSE_CI_API_KEY"
 MAX_DIFF_BYTES = 60_000  # Also stays below Linux's per-environment-string limit.
 
 
@@ -180,7 +182,7 @@ def configuration(root: Path, mode: str) -> dict:
         "model_api": {
             "npm": "@ai-sdk/openai-compatible",
             "name": "Meta Model API",
-            "options": {"baseURL": "https://api.meta.ai/v1", "apiKey": "{env:" + SECRET + "}"},
+            "options": {"baseURL": "https://api.meta.ai/v1", "apiKey": "{env:" + PROVIDER_ENV + "}"},
             "models": {"muse-spark-1.3-contributor": {
                 "name": "Muse Spark 1.3 Contributor", "limit": {"context": 1048576, "output": 131072}}},
         }
