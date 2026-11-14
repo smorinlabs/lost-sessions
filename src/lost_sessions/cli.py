@@ -38,9 +38,11 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
         if ctx.invoked_subcommand is None:
             click.echo(ctx.get_help())
 
+    from lost_sessions.evidence_cli import evidence_command
     from lost_sessions.inventory import agent_tools
 
     cli.add_command(_inventory_command(list(agent_tools(manager)), manager))
+    cli.add_command(evidence_command(manager))
     for command in (
         _recover_command(manager),
         _list_command(manager),
@@ -95,6 +97,11 @@ def _inventory_command(tools: list[str], manager: PluginManager) -> click.Comman
     )
     @click.option("-o", "--output", type=click.Choice(["text", "json"]), default=None)
     @click.option("--json", "as_json", is_flag=True, help="same as --output json")
+    @click.option(
+        "--evidence",
+        is_flag=True,
+        help="include optional recorded evidence; selection stays unchanged",
+    )
     def inventory(
         tool: tuple[str, ...],
         live: bool,
@@ -102,6 +109,7 @@ def _inventory_command(tools: list[str], manager: PluginManager) -> click.Comman
         include_subagents: bool,
         output: str | None,
         as_json: bool,
+        evidence: bool,
     ) -> None:
         """Read-only inventory of agent sessions, newest activity first."""
         from lost_sessions.inventory import collect, select
@@ -112,17 +120,49 @@ def _inventory_command(tools: list[str], manager: PluginManager) -> click.Comman
         sources = {
             name: src.model_dump(exclude_none=True) for name, src in inv.sources.items()
         }
+        summaries = {}
+        evidence_warnings: list[str] = []
+        if evidence:
+            from lost_sessions.evidence import Store, summarize
+
+            stored = Store().read()
+            evidence_warnings = stored.warnings
+            for rec in keep:
+                summaries[(rec.tool, rec.id)] = summarize(
+                    [
+                        r
+                        for r in stored.records
+                        if (r.tool, r.session_id) == (rec.tool, rec.id)
+                    ]
+                )
         if mode == "json":
             doc = {
                 "sessions": [rec.model_dump(mode="json") for rec in keep],
                 "census": {n: c.model_dump() for n, c in inv.census.items()},
                 "sources": sources,
             }
+            if evidence:
+                for row, rec in zip(doc["sessions"], keep, strict=True):
+                    row["evidence"] = summaries[(rec.tool, rec.id)].model_dump(
+                        mode="json"
+                    )
+                doc["evidence_warnings"] = evidence_warnings
             click.echo(json.dumps(doc, indent=2))
         else:
             for r in keep:
                 fields = (r.tool, r.id, r.name, r.live, r.updated, r.spawn_dir, r.title)
                 click.echo("\t".join(str(v) if v else "-" for v in fields))
+                if evidence:
+                    from lost_sessions.evidence_cli import summary_text
+
+                    click.echo(
+                        "\n".join(
+                            f"  {line}"
+                            for line in summary_text(
+                                summaries[(r.tool, r.id)]
+                            ).splitlines()
+                        )
+                    )
             for name, c in inv.census.items():
                 click.echo(
                     f"# census {name}: listed={c.listed}"
@@ -130,6 +170,8 @@ def _inventory_command(tools: list[str], manager: PluginManager) -> click.Comman
                     f" unreadable={c.unreadable} live={c.live}"
                     f" source={sources[name]['status']}"
                 )
+            for warning in evidence_warnings:
+                click.echo(f"lost-sessions: {warning}", err=True)
         if inv.failed:
             message = "; ".join(sources[t]["message"] for t in inv.failed)
             if mode == "json":

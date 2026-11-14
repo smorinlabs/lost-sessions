@@ -9,5 +9,7 @@ project_structure
 configuration_files
 cli_reference
 plugins
+session_evidence
+session_evidence_records
 versioning
 ```

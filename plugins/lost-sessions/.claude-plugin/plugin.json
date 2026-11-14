@@ -1,0 +1,11 @@
+{
+  "name": "lost-sessions",
+  "version": "0.1.0",
+  "description": "Recover lost agent sessions and keep optional session evidence.",
+  "author": {
+    "name": "smorinlabs"
+  },
+  "license": "MIT",
+  "keywords": ["sessions", "recovery", "evidence"],
+  "skills": "./skills/"
+}

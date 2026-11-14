@@ -37,7 +37,7 @@ def test_repo_marketplace_defaults_astral_plugin_on() -> None:
 
     assert marketplace["name"] == "lost-sessions"
     assert marketplace["interface"]["displayName"] == "lost-sessions"
-    assert marketplace["plugins"] == [
+    assert [p for p in marketplace["plugins"] if p["name"] == "astral"] == [
         {
             "name": "astral",
             "source": {"source": "local", "path": "./plugins/astral"},

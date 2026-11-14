@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v lost-sessions >/dev/null 2>&1; then lost-sessions evidence hook --tool codex || true; fi",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v lost-sessions >/dev/null 2>&1; then lost-sessions evidence hook --tool codex || true; fi",
+            "timeout": 1
+          }
+        ]
+      }
+    ]
+  }
+}
