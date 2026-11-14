@@ -19,7 +19,11 @@ import pytest
 
 from lost_sessions import core, history
 from lost_sessions.default_plugins.herdr import HerdrDestination, agent_name
-from lost_sessions.default_plugins.rex import SHELL_FALLBACK, RexDestination
+from lost_sessions.default_plugins.rex import (
+    SHELL_FALLBACK,
+    RexDestination,
+    launch_shell,
+)
 from lost_sessions.history import HistoryEntry
 from lost_sessions.managers import run_json
 from tests.test_core import (  # noqa: F401 - cli_env is a fixture
@@ -250,6 +254,37 @@ def test_rex_plan_into_a_new_session_names_its_first_window(cli_env, monkeypatch
             r.session.resume,
         ]
     ]
+
+
+@pytest.mark.parametrize(
+    ("env_shell", "want"),
+    [
+        ("/bin/zsh", "/bin/zsh"),
+        ("/opt/homebrew/bin/bash", "/opt/homebrew/bin/bash"),
+        ("/bin/sh", "/bin/sh"),
+        ("/bin/dash", "/bin/dash"),
+        ("/bin/ksh", "/bin/ksh"),
+        ("/opt/homebrew/bin/fish", "/bin/zsh"),
+        ("/bin/tcsh", "/bin/zsh"),
+        ("/usr/local/bin/nu", "/bin/zsh"),
+        ("", "/bin/zsh"),
+        (None, "/bin/zsh"),
+    ],
+)
+def test_launch_shell_keeps_only_bourne_family_shells(env_shell, want):
+    assert launch_shell(env_shell) == want
+
+
+def test_rex_plan_with_a_non_bourne_shell_runs_the_wrapper_under_zsh(
+    cli_env, monkeypatch
+):
+    monkeypatch.setenv("SHELL", "/opt/homebrew/bin/fish")
+    got = steps(plan_row(), "rex", rex_dest("current", current=True))
+    argv = got[0]
+    assert ["/bin/zsh", "-ilc", SHELL_FALLBACK, "/bin/zsh"] == argv[
+        argv.index("/bin/zsh") : argv.index("/bin/zsh") + 4
+    ]
+    assert not any("fish" in a for a in argv)
 
 
 def test_rex_shell_fallback_runs_the_command_then_execs_the_shell(tmp_path):

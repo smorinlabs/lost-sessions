@@ -22,6 +22,15 @@ from lost_sessions.managers import (
 CURRENT = "current"  # --rex-session value: the Rex session lost-sessions runs in
 # A Rex tab closes when its command exits, so the command runs inside the login shell, which then becomes an interactive shell.
 SHELL_FALLBACK = '"$@"; exec "$0" -il'
+# Shells that accept SHELL_FALLBACK (Bourne syntax) and the -ilc / -il flags.
+POSIX_SHELLS = ("zsh", "bash", "sh", "dash", "ksh")
+
+
+def launch_shell(env_shell: str | None) -> str:
+    """The shell that runs SHELL_FALLBACK: $SHELL when it is a Bourne-family shell, else /bin/zsh."""
+    if env_shell and os.path.basename(env_shell) in POSIX_SHELLS:
+        return env_shell
+    return "/bin/zsh"
 
 
 class RexDestination(Destination):
@@ -160,7 +169,7 @@ class Rex(SessionManager):
 
     @override
     def plan(self, p: Plan, dest: Destination) -> list[Step]:
-        shell = os.environ.get("SHELL") or "/bin/zsh"
+        shell = launch_shell(os.environ.get("SHELL"))
         cmd = [
             "--shell=none",
             "--",

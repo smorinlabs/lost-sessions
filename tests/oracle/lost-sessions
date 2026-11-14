@@ -280,7 +280,9 @@ def agent_name(s):
 
 
 def rex_command(s):
-    shell = os.environ.get("SHELL") or "/bin/zsh"
+    env_shell = os.environ.get("SHELL")
+    # Only Bourne-family shells accept the wrapper; anything else (fish, tcsh, nu) gets /bin/zsh.
+    shell = env_shell if env_shell and os.path.basename(env_shell) in ("zsh", "bash", "sh", "dash", "ksh") else "/bin/zsh"
     return ["--shell=none", "--", shell, "-ilc", '"$@"; exec "$0" -il', shell, "zsh", "-c", resume_command(s)]
 
 
