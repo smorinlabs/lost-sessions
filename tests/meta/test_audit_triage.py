@@ -36,7 +36,8 @@ def _step_named(name):
 
 def test_triage_job_gates_automatic_schedule_failures_only():
     condition = _job()["if"]
-    assert "vars.MUSE_CI_ENABLED == 'true'" in condition
+    assert "vars.MUSE_AUDIT_TRIAGE_ENABLED == 'true'" in condition
+    assert "MUSE_CI_ENABLED" not in condition
     assert "owner.type == 'Organization'" in condition
     assert "github.event_name == 'workflow_dispatch'" in condition
     assert "github.event.workflow_run.conclusion == 'failure'" in condition
