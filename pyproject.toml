@@ -20,7 +20,7 @@
 [project]
 name = "lost_sessions"
 # ITM-070 — static version (ADR-06 cutover). release-please bumps this.
-version = "0.1.0"
+version = "0.2.0"
 description = "Recover agent sessions that a reboot dropped, with pluggable session managers"
 readme = "README.md"
 requires-python = ">=3.13"
