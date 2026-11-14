@@ -39,9 +39,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "click>=8.1.0",
+  "click>=8.5.1",
   "pluggy>=1.5.0",     # plugin manager, as in simonw/llm (design Section 4)
-  "pydantic>=2.0.0",   # every data object is a Pydantic model (design Q-G2)
+  "pydantic>=2.14.3",   # every data object is a Pydantic model (design Q-G2)
   "textual>=8,<9",     # the `recover` menu; imported lazily
 ]
 
