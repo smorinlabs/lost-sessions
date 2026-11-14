@@ -64,6 +64,8 @@ config-variables:
   - RUNNER_MACOS
   - RUNNER_WINDOWS
   # Kill-switch for the audit-triage bot (audit-triage.yml); unset = inert.
+  - MUSE_AUDIT_TRIAGE_ENABLED
+  # Kill-switch for Muse PR reviews (opencode-pr-review.yml); unset = inert.
   - MUSE_CI_ENABLED
 
 paths:

@@ -40,9 +40,9 @@ classifiers = [
 ]
 dependencies = [
   "click>=8.5.1",
-  "pluggy>=1.5.0",     # plugin manager, as in simonw/llm (design Section 4)
-  "pydantic>=2.14.3",   # every data object is a Pydantic model (design Q-G2)
-  "textual>=8,<9",     # the `recover` menu; imported lazily
+  "pluggy>=1.5.0",    # plugin manager, as in simonw/llm (design Section 4)
+  "pydantic>=2.14.3", # every data object is a Pydantic model (design Q-G2)
+  "textual>=8,<9",    # the `recover` menu; imported lazily
 ]
 
 # ITM-063 — PEP 735 dependency-groups (round-13 decision). Replaces
@@ -51,7 +51,7 @@ dependencies = [
 dev = [
   "pytest>=7.0.0",
   "pytest-cov>=4.1.0",
-  "ty>=0.0.1a16",        # per ADR-03 (pre-1.0; bump as needed)
+  "ty>=0.0.1a16",      # per ADR-03 (pre-1.0; bump as needed)
   "ruff>=0.1.0",
   "types-Pygments",
   "cogapp",
@@ -155,7 +155,8 @@ exclude = [
   "dist",
   "docs/source/conf.py",
   "src/lost_sessions/_version.py",
-  "prototypes",                          # P0004 template-press engine prototypes (own lint config in template-press)
+  "prototypes",                    # P0004 template-press engine prototypes (own lint config in template-press)
+  ".github/scripts/muse_ci.py",    # vendored from muse-github-setup; its installer refuses edited managed files
 ]
 # Per-file-ignores
 [tool.ruff.lint.pycodestyle]
@@ -296,5 +297,9 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 [[tool.importlinter.contracts]]
 name = "core reaches built-in plugins only through the plugin manager"
 type = "forbidden"
-source_modules = ["lost_sessions.cli", "lost_sessions.hookspecs", "lost_sessions.plugins"]
+source_modules = [
+  "lost_sessions.cli",
+  "lost_sessions.hookspecs",
+  "lost_sessions.plugins",
+]
 forbidden_modules = ["lost_sessions.default_plugins"]

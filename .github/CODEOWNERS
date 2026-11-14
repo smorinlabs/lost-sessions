@@ -1,0 +1,7 @@
+# Muse CI security-sensitive configuration (muse-github-setup).
+# CODEOWNERS is not enforcement on its own; branch rules must require review.
+/.github/workflows/opencode-*.yml @smorin
+/.github/scripts/muse_ci.py @smorin
+/.opencode/muse-ci/ @smorin
+/opencode.json @smorin
+/AGENTS.md @smorin

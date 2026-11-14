@@ -29,7 +29,7 @@
 #   definitively-dead URLs fail the run; bot-ambiguous statuses warn.
 #
 # The bot proposes, the deterministic layer verifies, a human merges.
-# Ships to pressed forks inert: without the MUSE_CI_ENABLED repo variable
+# Ships to pressed forks inert: without the MUSE_AUDIT_TRIAGE_ENABLED repo variable
 # (and secret) the job skips. Forks that adopt it must also set their owner
 # login in .opencode/audit-triage/policy.json. Set the variable only after
 # the skill's acceptance prerequisites hold.
@@ -55,7 +55,7 @@ concurrency:
 jobs:
   triage:
     if: >-
-      vars.MUSE_CI_ENABLED == 'true' &&
+      vars.MUSE_AUDIT_TRIAGE_ENABLED == 'true' &&
       github.event.repository.owner.type == 'Organization' &&
       (github.event_name == 'workflow_dispatch' ||
         (github.event.workflow_run.conclusion == 'failure' &&
