@@ -39,10 +39,13 @@ jobs:
         with:
           fetch-depth: 0  # range scan needs full history
 
-      # On merge_group there are no PR commits to lint (they were already
-      # linted on the PR) — skip the step so the required check reports green.
+      # Lint only on pull_request. On merge_group there are no PR commits to
+      # lint, and on push to main every commit was already linted on its PR
+      # by the job matching its author. Re-linting on push would check
+      # dependabot commits against this strict config and fail on their
+      # long release-note lines.
       - name: commitlint
-        if: github.event_name != 'merge_group'
+        if: github.event_name == 'pull_request'
         uses: wagoid/commitlint-github-action@v6.2.1
         with:
           configFile: commitlint.config.mjs
