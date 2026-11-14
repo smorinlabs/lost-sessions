@@ -279,6 +279,11 @@ def agent_name(s):
     return f"lost-{s['tool']}-{hashlib.sha1(s['id'].encode()).hexdigest()[:10]}"
 
 
+def rex_command(s):
+    shell = os.environ.get("SHELL") or "/bin/zsh"
+    return ["--shell=none", "--", shell, "-ilc", '"$@"; exec "$0" -il', shell, "zsh", "-c", resume_command(s)]
+
+
 def plan(s, action, target):
     """The commands an action runs. `{pane}`, `{tab}`, `{window}` are filled in from earlier responses."""
     cwd = s.get("spawn_dir") or str(Path.home())
@@ -286,10 +291,10 @@ def plan(s, action, target):
     if action == "rex":
         if not (target.session_id or target.current):
             return [["rex", "session", "new", target.label, "--json", "--window", label, "-c", cwd,
-                     "--interactive", "--", "zsh", "-c", resume_command(s)]]
+                     *rex_command(s)]]
         scope = ["-s", target.session_id] if target.session_id else []  # unscoped rename fails across sessions
-        return [["rex", "run", *scope, "--json", "--focus=false", "--interactive", "--label", label, "-c", cwd,
-                 "--", "zsh", "-c", resume_command(s)],
+        return [["rex", "run", *scope, "--json", "--focus=false", "--label", label, "-c", cwd,
+                 *rex_command(s)],
                 ["rex", "window", "rename", *scope, "{window}", label]]
     if action != "herdr":
         return []

@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import shutil
+import subprocess
 import sys
 import textwrap
 
@@ -18,7 +19,7 @@ import pytest
 
 from lost_sessions import core, history
 from lost_sessions.default_plugins.herdr import HerdrDestination, agent_name
-from lost_sessions.default_plugins.rex import RexDestination
+from lost_sessions.default_plugins.rex import SHELL_FALLBACK, RexDestination
 from lost_sessions.history import HistoryEntry
 from lost_sessions.managers import run_json
 from tests.test_core import (  # noqa: F401 - cli_env is a fixture
@@ -196,7 +197,10 @@ def test_a_broken_fake_fails_instead_of_reaching_the_real_tool(fakes):
 # --- plans --------------------------------------------------------------------------
 
 
-def test_rex_plan_into_the_active_session_runs_then_names_the_window(cli_env):
+def test_rex_plan_into_the_active_session_runs_then_names_the_window(
+    cli_env, monkeypatch
+):
+    monkeypatch.setenv("SHELL", "/bin/zsh")
     r = plan_row()
     got = steps(r, "rex", rex_dest("current", current=True))
     assert got[0] == [
@@ -204,12 +208,16 @@ def test_rex_plan_into_the_active_session_runs_then_names_the_window(cli_env):
         "run",
         "--json",
         "--focus=false",
-        "--interactive",
         "--label",
         "#3 title 3ac1dc",
         "-c",
         "/Users/x/c/my repo",
+        "--shell=none",
         "--",
+        "/bin/zsh",
+        "-ilc",
+        SHELL_FALLBACK,
+        "/bin/zsh",
         "zsh",
         "-c",
         r.session.resume,
@@ -217,7 +225,8 @@ def test_rex_plan_into_the_active_session_runs_then_names_the_window(cli_env):
     assert got[1] == ["rex", "window", "rename", "{window}", "#3 title 3ac1dc"]
 
 
-def test_rex_plan_into_a_new_session_names_its_first_window(cli_env):
+def test_rex_plan_into_a_new_session_names_its_first_window(cli_env, monkeypatch):
+    monkeypatch.setenv("SHELL", "/bin/zsh")
     r = plan_row()
     assert steps(r, "rex", rex_dest()) == [
         [
@@ -230,13 +239,43 @@ def test_rex_plan_into_a_new_session_names_its_first_window(cli_env):
             "#3 title 3ac1dc",
             "-c",
             "/Users/x/c/my repo",
-            "--interactive",
+            "--shell=none",
             "--",
+            "/bin/zsh",
+            "-ilc",
+            SHELL_FALLBACK,
+            "/bin/zsh",
             "zsh",
             "-c",
             r.session.resume,
         ]
     ]
+
+
+def test_rex_shell_fallback_runs_the_command_then_execs_the_shell(tmp_path):
+    record = tmp_path / "record"
+    fake_shell = tmp_path / "fake-shell"
+    write_exe(fake_shell, f'#!/bin/sh\nprintf "%s\\n" "$@" > {record}\n')
+    ran = tmp_path / "ran"
+    proc = subprocess.run(
+        [
+            "/bin/sh",
+            "-c",
+            SHELL_FALLBACK,
+            str(fake_shell),
+            "/bin/sh",
+            "-c",
+            f'printf "%s" "$1" > {ran}',
+            "ignored",
+            "an arg with spaces",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert proc.returncode == 0
+    assert ran.read_text() == "an arg with spaces"
+    assert record.read_text().splitlines() == ["-il"]
 
 
 def test_rex_plan_into_another_session_scopes_run_and_rename(cli_env):

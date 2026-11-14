@@ -20,6 +20,8 @@ from lost_sessions.managers import (
 )
 
 CURRENT = "current"  # --rex-session value: the Rex session lost-sessions runs in
+# A Rex tab closes when its command exits, so the command runs inside the login shell, which then becomes an interactive shell.
+SHELL_FALLBACK = '"$@"; exec "$0" -il'
 
 
 class RexDestination(Destination):
@@ -158,7 +160,18 @@ class Rex(SessionManager):
 
     @override
     def plan(self, p: Plan, dest: Destination) -> list[Step]:
-        cmd = ["--", "zsh", "-c", p.resume.command]
+        shell = os.environ.get("SHELL") or "/bin/zsh"
+        cmd = [
+            "--shell=none",
+            "--",
+            shell,
+            "-ilc",
+            SHELL_FALLBACK,
+            shell,
+            "zsh",
+            "-c",
+            p.resume.command,
+        ]
         if dest.is_new():
             return [
                 Step(
@@ -172,7 +185,6 @@ class Rex(SessionManager):
                         p.label,
                         "-c",
                         p.cwd,
-                        "--interactive",
                         *cmd,
                     ],
                     opens=True,
@@ -188,7 +200,6 @@ class Rex(SessionManager):
                     *scope,
                     "--json",
                     "--focus=false",
-                    "--interactive",
                     "--label",
                     p.label,
                     "-c",
