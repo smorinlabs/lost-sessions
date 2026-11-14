@@ -5,6 +5,8 @@ The oracle is the pinned `lost-sessions` script from smorin/smorin-bootstrap at
 `session-inventory` on PATH; the new CLI reads the same sessions from a fake
 agent plugin. Stdout, exit codes and history lines must match, except for the
 decided additions: `schema` and `written_by` on new lines (Section 8.1).
+The vendored oracle deliberately differs from the pinned upstream script in the Rex
+launch form (shell fallback).
 """
 
 from __future__ import annotations
@@ -167,6 +169,7 @@ def both_with_managers(both, monkeypatch, tmp_path):
     monkeypatch.setenv("PATH", f"{bindir}:{SYSTEM_PATH}")
     monkeypatch.setenv("FAKE_LOG", str(new_calls))
     monkeypatch.setenv("REX_SESSION", "session:cur")
+    monkeypatch.setenv("SHELL", "/bin/zsh")
     oracle_bin = tmp_path / "oracle-bin"
     for name in ("herdr", "rex"):
         (oracle_bin / name).symlink_to(bindir / name)
@@ -175,6 +178,7 @@ def both_with_managers(both, monkeypatch, tmp_path):
         env = {
             "FAKE_LOG": str(oracle_calls),
             "REX_SESSION": "session:cur",
+            "SHELL": "/bin/zsh",
             **(extra or {}),
         }
         return oracle(*argv, extra_env=env)
