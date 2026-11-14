@@ -7,7 +7,7 @@ Sphinx site (`docs/source/`). Three buckets, by intent:
 |---|---|---|
 | [`adr/`](adr/) | **Architecture Decision Records** — one significant decision each, with context + consequences. | Yes (a decision) |
 | [`design/`](design/) | **Design / requirements specs** — proposals and conventions to implement. | Yes (a plan) |
-| `research/` | **Research** — investigations, comparisons, findings. Create this directory when the project needs it. | No (exploration) |
+| [`research/`](research/) | **Research** — investigations, comparisons, findings. | No (exploration) |
 
 Rules of thumb:
 
