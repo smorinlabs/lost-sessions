@@ -14,6 +14,8 @@ evidence store creates nothing.
 | `lost-sessions evidence view --tool codex --session ID --json` | Join native facts with the derived summary |
 | `lost-sessions inventory --evidence --json` | Enrich the normal inventory without changing selection or order |
 
+Use the full session ID when reading evidence records.
+
 `ID` comes from the runtime or `lost-sessions inventory --json`; never identify
 a session by its directory or assume the newest session is the intended one.
 `--file -` reads stdin and is the default. JSON input is limited to 1 MiB and a
