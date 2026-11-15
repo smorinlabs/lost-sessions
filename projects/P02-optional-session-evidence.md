@@ -39,6 +39,8 @@ confusing reopening, present liveness, closure intent, and work completion.
   assessment currency, absent/corrupt stores, and unchanged default inventory.
 - [x] [P02-TS02] Verify skill loading in isolated Claude Code and Codex sessions.
 - [x] [P02-TS03] Complete the final full checks and package verification.
+- [x] [P02-TS04] Verify authenticated Claude Code and Codex skill workflows
+  with isolated evidence stores and independent record readback.
 - [x] [P02-T05] Prepare `feat/session-evidence` for review.
 - [ ] [P02-T06] Merge and release after review; not part of local implementation.
 
@@ -48,7 +50,8 @@ Tests use isolated state. No hook is enabled in the user's live configuration.
 Fixture mapping and skill loading do not establish that an installed hook fires
 in a real runtime lifecycle; that check belongs to the chosen integration.
 
-Local validation on 2026-11-14: `just check` passed with 411 tests passing,
+Local validation on 2026-11-14 after updating onto current `main`:
+`just check` passed with 423 tests passing,
 3 skipped, and 3 deselected. Whole-tree formatting, the Sphinx build with
 warnings as errors, and the package build passed. The built wheel completed an
 isolated evidence record/read round trip.
@@ -59,8 +62,11 @@ isolated evidence record/read round trip.
 | Safety, trigger fit, and documentation | Reviewed; no automatic recording or cleanup |
 | Harness generation | Not applicable to this repository plugin |
 | Tool verification | Claude/Codex loaders passed; isolated Codex marketplace installation passed |
-| Authenticated workflow smoke | Unverified: isolated Claude lacked login; Codex encountered DNS failures |
+| Authenticated workflow smoke | Passed for Claude and Codex; each wrote exactly one fixture assessment, independently verified |
 
-Overall: local implementation and plugin loading are verified. Authenticated
-workflow and actual installed lifecycle-hook firing remain unverified. The
-isolated workflow attempts created no evidence records.
+Overall: local implementation, plugin loading, and authenticated skill workflows
+are verified. Actual installed lifecycle-hook firing remains unverified.
+The successful workflow checks used existing runtime authentication without
+copying credentials or changing live configuration. Evidence stayed in temporary
+stores. Earlier isolated-login and network failures are superseded by these
+successful checks.
