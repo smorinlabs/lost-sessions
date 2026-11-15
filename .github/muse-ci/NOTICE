@@ -1,7 +1,8 @@
 Templates adapted from Meta Platforms, Inc. and affiliates, meta-model-cookbook
 03_use_cases/11_github_repo_agent at c5a9882b4c7f3900e9c93122249d37317c8abff4.
 Source: https://github.com/meta-models/meta-model-cookbook
-Adapted on 2026-09-19. The upstream OpenCode Action is used, not redistributed.
+Initially adapted on 2026-09-19. Migrated to the official Claude Code Action
+on 2026-11-14. The upstream actions are used, not redistributed.
 
 MIT License
 
