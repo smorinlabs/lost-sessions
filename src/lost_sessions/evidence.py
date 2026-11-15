@@ -231,7 +231,16 @@ class Store:
                     self.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.25
                 )
             ) as conn:
-                if self._version(conn) != 1:
+                conn.execute("BEGIN")
+                version = self._version(conn)
+                if version == 0:
+                    tables = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                    if tables:
+                        result.warnings.append("unrecognized evidence database")
+                    return result
+                if version != 1:
                     result.warnings.append(
                         "unsupported evidence database version; upgrade lost-sessions"
                     )

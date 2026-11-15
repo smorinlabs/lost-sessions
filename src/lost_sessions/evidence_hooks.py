@@ -16,6 +16,12 @@ class HookInput(BaseModel):
 
 
 def normalize_hook(tool: Literal["claude", "codex"], payload: object) -> Event | None:
+    if (
+        isinstance(payload, dict)
+        and isinstance(name := payload.get("hook_event_name"), str)
+        and name.strip() not in {"SessionStart", "SessionEnd"}
+    ):
+        return None
     value = HookInput.model_validate(payload)
     if value.hook_event_name == "SessionStart":
         return Event(

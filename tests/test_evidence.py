@@ -30,6 +30,28 @@ def test_reading_absent_store_creates_nothing(tmp_path):
     assert not path.parent.exists()
 
 
+def test_reading_uninitialized_store_preserves_empty_file(tmp_path):
+    path = tmp_path / "evidence.sqlite3"
+    path.touch()
+    result = Store(path).read()
+    assert result.records == []
+    assert result.warnings == []
+    assert path.read_bytes() == b""
+
+
+def test_version_zero_with_tables_is_not_an_empty_store(tmp_path):
+    path = tmp_path / "evidence.sqlite3"
+    with sqlite3.connect(path) as conn:
+        conn.execute("CREATE TABLE unrelated (value TEXT)")
+    result = Store(path).read()
+    assert result.records == []
+    assert result.warnings
+
+
+def test_ignored_hook_does_not_require_session_identity():
+    assert normalize_hook("codex", {"hook_event_name": "Stop"}) is None
+
+
 def test_reopen_and_recap_preserve_completion_and_original_history(tmp_path):
     store = Store(tmp_path / "evidence.sqlite3")
     store.append(event(run_id="run-1"))
