@@ -27,6 +27,7 @@ class EvidenceGroup(click.Group):
         machine = (
             "--json" in args
             or "--output=json" in args
+            or "-ojson" in args
             or any(
                 arg in ("-o", "--output") and args[i + 1 : i + 2] == ["json"]
                 for i, arg in enumerate(args)

@@ -66,6 +66,7 @@ def test_validate_write_read_and_summary(isolated):
     [
         (["record", "--json"], ""),
         (["record", "--json"], "{"),
+        (["record", "-ojson"], "{"),
         (["record", "--json"], document(kind="assessment", work_state="complete")),
         (["record", "--json"], document() + " " * 1048576),
         (["list", "--json"], ""),
@@ -218,6 +219,23 @@ def test_dry_run_enforces_stored_record_size_limit(isolated):
     result = runner.invoke(
         cli, ["evidence", "record", "--dry-run", "--json"], input=payload
     )
+    assert result.exit_code == 2
+    assert "64 KiB" in result.stderr
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_record_size_limit_includes_receipt_metadata(isolated, dry_run):
+    from lost_sessions.evidence import Event
+
+    runner, cli, path = isolated
+    event = Event.model_validate_json(document(references=["a" * 8192] * 7 + ["b"]))
+    padding = 65530 - len(event.model_dump_json().encode())
+    event.references[-1] += "b" * padding
+    payload = event.model_dump_json()
+    assert len(payload.encode()) == 65530
+    args = ["evidence", "record", "--json"] + (["--dry-run"] if dry_run else [])
+    result = runner.invoke(cli, args, input=payload)
     assert result.exit_code == 2
     assert "64 KiB" in result.stderr
     assert not path.exists()

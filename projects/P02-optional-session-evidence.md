@@ -56,7 +56,7 @@ but marks them untrusted in a clean configuration. Its actual lifecycle-hook
 test remains pending the normal hook-trust approval; trust is not bypassed.
 
 Local validation on 2026-11-14 after updating onto current `main`:
-`just check` passed with 425 tests passing,
+`just check` passed with 432 tests passing,
 3 skipped, and 3 deselected. Whole-tree formatting, the Sphinx build with
 warnings as errors, and the package build passed. The built wheel completed an
 isolated evidence record/read round trip.

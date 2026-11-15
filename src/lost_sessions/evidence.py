@@ -31,6 +31,12 @@ WorkState = Literal[
 ]
 Activity = Literal["work", "orientation", "administrative", "unknown"]
 
+# The stored receipt adds a UTC timestamp (up to six fractional digits) and UUID.
+_RECEIPT_SIZE_BYTES = len(
+    ',"recorded_at":"2000-01-01T00:00:00.000000Z",'
+    '"machine_id":"00000000-0000-0000-0000-000000000000"'
+)
+
 
 def utc_now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
@@ -107,7 +113,7 @@ class EvidenceRead(BaseModel):
 def validate_event(payload: object) -> Event:
     """Apply the same shape and size checks to previews and stored writes."""
     event = Event.model_validate(payload)
-    if len(event.model_dump_json().encode()) > 65536:
+    if len(event.model_dump_json().encode()) + _RECEIPT_SIZE_BYTES > 65536:
         raise ValueError("evidence record exceeds 64 KiB")
     return event
 
@@ -231,7 +237,16 @@ class Store:
                     self.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.25
                 )
             ) as conn:
-                if self._version(conn) != 1:
+                conn.execute("BEGIN")
+                version = self._version(conn)
+                if version == 0:
+                    tables = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                    if tables:
+                        result.warnings.append("unrecognized evidence database")
+                    return result
+                if version != 1:
                     result.warnings.append(
                         "unsupported evidence database version; upgrade lost-sessions"
                     )
