@@ -1,4 +1,11 @@
-## [~] Project P02: Optional session evidence
+## [x] Project P02: Optional session evidence
+
+**References**
+- **Trunk:** [PROJECTS.md](../PROJECTS.md)
+- **Spec:** [Optional session evidence](../docs/superpowers/specs/2026-11-14-optional-session-evidence.md)
+- **Design:** [Session evidence design](../docs/design/0007-optional-session-evidence.md)
+- **User reference:** [Session evidence commands](../docs/source/reference/session_evidence.md)
+- **Skill:** [Lost-sessions companion](../plugins/lost-sessions/skills/lost-sessions/SKILL.md)
 
 **Goal/Requirement**: Add optional lifecycle observations and work assessments
 to existing session discovery so users can inspect what was recorded without
@@ -25,19 +32,19 @@ confusing reopening, present liveness, closure intent, and work completion.
   latest task-directed turn or an earlier work-completion assessment.
 - Missing evidence never proves a crash, completion, or explicit closure.
 
-**References**
-- Specification: `docs/superpowers/specs/2026-11-14-optional-session-evidence.md`
-- Design: `docs/design/0007-optional-session-evidence.md`
-- User reference: `docs/source/reference/session_evidence.md`
-- Skill: `plugins/lost-sessions/skills/lost-sessions/SKILL.md`
-
 ### Delivery references
 
 Storage and commands were merged through
 [PR #29](https://github.com/smorinlabs/lost-sessions/pull/29).
-Companion skill and documentation delivery is tracked in
+The companion skill and documentation were merged through
 [PR #28](https://github.com/smorinlabs/lost-sessions/pull/28).
-The release preview proposes version 0.3.0; publication is verified separately.
+[Release PR #27](https://github.com/smorinlabs/lost-sessions/pull/27)
+published [v0.3.0](https://github.com/smorinlabs/lost-sessions/releases/tag/v0.3.0)
+from commit `502f664053ab753abd53b69a963e7af31de64e0f`.
+The [publish workflow](https://github.com/smorinlabs/lost-sessions/actions/runs/43686027187)
+completed both TestPyPI and PyPI uploads. The
+[PyPI 0.3.0 wheel](https://pypi.org/project/lost-sessions/0.3.0/) was downloaded,
+its SHA256 verified, and an isolated evidence record/read round trip passed.
 
 ### Tests & Tasks
 - [x] [P02-T01] Implement validated append-only storage and derived summaries.
@@ -53,7 +60,7 @@ The release preview proposes version 0.3.0; publication is verified separately.
 - [x] [P02-TS05] Verify actual Claude Code startup/end hooks in a temporary session.
 - [x] [P02-T05] Prepare storage/CLI PR #29 and dependent companion/docs PR #28
   for review.
-- [ ] [P02-T06] Merge and release after review; not part of local implementation.
+- [x] [P02-T06] Merge after review and publish v0.3.0; verify the published wheel.
 
 ### Validation boundaries
 
@@ -78,8 +85,9 @@ isolated evidence record/read round trip.
 | Authenticated workflow smoke | Passed for Claude and Codex; each wrote exactly one fixture assessment, independently verified |
 | Runtime lifecycle hooks | Claude startup/end passed; Codex definitions load but require normal trust approval |
 
-Overall: local implementation, plugin loading, and authenticated skill workflows
-are verified. Claude runtime lifecycle callbacks are verified; Codex hook firing
+Overall: v0.3.0 is released, and the published package, plugin loading, and
+authenticated skill workflows are verified. Claude runtime lifecycle callbacks
+are verified; Codex hook firing
 remains unverified pending trust approval.
 The successful workflow checks used existing runtime authentication without
 copying credentials or changing live configuration. Evidence stayed in temporary

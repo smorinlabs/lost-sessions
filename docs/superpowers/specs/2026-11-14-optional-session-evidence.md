@@ -1,6 +1,6 @@
 # Optional session evidence
 
-Status: approved on 2026-11-14 and implemented for review under project P02.
+Status: approved on 2026-11-14 and released in v0.3.0 under project P02.
 
 The accepted specification is
 [design 0007](../../design/0007-optional-session-evidence.md). It defines the
