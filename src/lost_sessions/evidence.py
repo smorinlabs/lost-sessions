@@ -115,8 +115,9 @@ def validate_event(payload: object) -> Event:
 class Store:
     """SQLite serializes concurrent appenders; reads never initialize a store."""
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, *, timeout: float = 5.0) -> None:
         self.path = path if path is not None else state_dir() / "evidence.sqlite3"
+        self.timeout = timeout
 
     @staticmethod
     def _version(conn: sqlite3.Connection) -> int:
@@ -144,7 +145,7 @@ class Store:
             pass
         else:
             os.close(fd)
-        with closing(sqlite3.connect(self.path, timeout=0.25)) as conn, conn:
+        with closing(sqlite3.connect(self.path, timeout=self.timeout)) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             version = self._version(conn)
             if version == 0:

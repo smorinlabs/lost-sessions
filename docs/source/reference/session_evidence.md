@@ -67,6 +67,9 @@ Records live at
 The existing `history.jsonl` continues recording recovery actions separately.
 Corrections append records. Native stores remain untouched, and this version
 does not synchronize evidence across machines.
+New files use mode 0600 on POSIX. On Windows, access follows the containing
+directory's access-control rules. Explicit writes wait up to five seconds for
+a busy database; hook writes wait up to 250 milliseconds.
 
 Unreadable optional evidence produces `evidence_warnings` in enriched inventory
 JSON while discovery retains its sessions and normal exit status. Explicit

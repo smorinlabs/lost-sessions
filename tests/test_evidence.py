@@ -3,6 +3,8 @@
 import concurrent.futures
 import datetime as dt
 import sqlite3
+import threading
+import time
 
 import pytest
 from pydantic import ValidationError
@@ -196,6 +198,37 @@ def test_concurrent_writes_survive_and_share_machine_identity(tmp_path):
         records = list(pool.map(write, range(24)))
     assert len(Store(path).read().records) == 24
     assert len({r.machine_id for r in records}) == 1
+
+
+def test_append_waits_for_brief_writer_contention(tmp_path):
+    path = tmp_path / "evidence.sqlite3"
+    store = Store(path)
+    store.append(event())
+    started = threading.Event()
+
+    def write():
+        started.set()
+        return store.append(event(note="after competing writer"))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        with sqlite3.connect(path) as competing:
+            competing.execute("BEGIN IMMEDIATE")
+            pending = pool.submit(write)
+            assert started.wait(timeout=2)
+            time.sleep(0.4)
+            competing.rollback()
+        pending.result(timeout=6)
+    assert len(store.read().records) == 2
+
+
+def test_short_write_budget_reports_a_busy_database(tmp_path):
+    path = tmp_path / "evidence.sqlite3"
+    Store(path).append(event())
+    with sqlite3.connect(path) as competing:
+        competing.execute("BEGIN IMMEDIATE")
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            Store(path, timeout=0.01).append(event())
+    assert len(Store(path).read().records) == 1
 
 
 def test_unreadable_record_is_reported_without_discarding_good_evidence(tmp_path):

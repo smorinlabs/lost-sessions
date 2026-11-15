@@ -18,7 +18,8 @@ skill does not enable hooks. Native agent transcripts remain untouched.
 ## Persistence
 
 Use a separate local SQLite database beside the existing action history.
-Transactions serialize concurrent appenders; new files use mode 0600.
+Transactions serialize concurrent appenders; new files use mode 0600 on POSIX.
+On Windows, access follows the containing directory's access-control rules.
 The store generates a persistent machine identity. This version is local-only.
 Events name the exact runtime and full session ID; optional runtime-instance IDs
 must come from actual runtime evidence, never from the conversation ID.
@@ -32,6 +33,8 @@ the same session and kind. Both versions remain in history.
 Unknown database versions and malformed records produce visible read warnings.
 Writers refuse unknown versions. Hook recording failures warn and return success
 so the agent's main work can continue.
+Explicit writes allow five seconds for database contention; hook writes keep
+a shorter 250-millisecond lock wait.
 
 ## Meanings
 

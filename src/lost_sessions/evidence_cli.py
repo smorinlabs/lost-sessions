@@ -229,7 +229,7 @@ def evidence_command(manager: PluginManager) -> click.Group:
         try:
             event = normalize_hook(tool, _read_document("-"))
             if event:
-                Store().append(event)
+                Store(timeout=0.25).append(event)
         except (OSError, sqlite3.Error, ValueError) as exc:
             # Do not dump the runtime payload or Pydantic input in a hook warning.
             message = (

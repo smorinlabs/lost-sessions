@@ -1,6 +1,7 @@
 """Commands are opt-in, bounded, and safe to call from optional runtime hooks."""
 
 import json
+import os
 import sqlite3
 
 import pytest
@@ -56,7 +57,8 @@ def test_validate_write_read_and_summary(isolated):
     )
     assert json.loads(viewed.stdout)["evidence"]["coverage"] == "partial"
     assert json.loads(viewed.stdout)["session"] is None
-    assert path.stat().st_mode & 0o777 == 0o600
+    if os.name == "posix":
+        assert path.stat().st_mode & 0o777 == 0o600
 
 
 @pytest.mark.parametrize(
