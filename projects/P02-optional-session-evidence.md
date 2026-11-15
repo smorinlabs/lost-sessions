@@ -31,6 +31,14 @@ confusing reopening, present liveness, closure intent, and work completion.
 - User reference: `docs/source/reference/session_evidence.md`
 - Skill: `plugins/lost-sessions/skills/lost-sessions/SKILL.md`
 
+### Delivery references
+
+Storage and commands were merged through
+[PR #29](https://github.com/smorinlabs/lost-sessions/pull/29).
+Companion skill and documentation delivery is tracked in
+[PR #28](https://github.com/smorinlabs/lost-sessions/pull/28).
+The release preview proposes version 0.3.0; publication is verified separately.
+
 ### Tests & Tasks
 - [x] [P02-T01] Implement validated append-only storage and derived summaries.
 - [x] [P02-T02] Add explicit evidence commands and optional inventory enrichment.
