@@ -10,7 +10,7 @@ evidence store creates nothing.
 |---|---|
 | `lost-sessions evidence record --file record.json --json` | Append an event or assessment and return its receipt |
 | `lost-sessions evidence record --file record.json --dry-run --json` | Validate input without writing; store-dependent conflicts are checked on append |
-| `lost-sessions evidence list --tool codex --session ID --json` | Read records for the exact full session ID |
+| `lost-sessions evidence list --tool codex --json` | Read records for the exact full session ID |
 | `lost-sessions evidence view --tool codex --session ID --json` | Join native facts with the derived summary |
 | `lost-sessions inventory --evidence --json` | Enrich the normal inventory without changing selection or order |
 
