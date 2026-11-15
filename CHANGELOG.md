@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1](https://github.com/smorinlabs/lost-sessions/compare/v0.3.0...v0.3.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ci:** allow muse reviews to complete ([8900c02](https://github.com/smorinlabs/lost-sessions/commit/8900c02bb28aa1e4752d4a28d41780357c61651c))
+* **ci:** guard audit triage retries and url checks ([4351bc7](https://github.com/smorinlabs/lost-sessions/commit/4351bc708ecc25ed1c851b3b4c8f3a610c9bf18e))
+* **ci:** publish completed muse responses ([bd16657](https://github.com/smorinlabs/lost-sessions/commit/bd16657f14a510ec5ccc65531d6283d3bb114269))
+* **ci:** update muse pilot review safeguards ([cad0c05](https://github.com/smorinlabs/lost-sessions/commit/cad0c05270967803e4b021d8e8dd180c2b488e08))
+
 ## [0.3.0](https://github.com/smorinlabs/lost-sessions/compare/v0.2.1...v0.3.0) (2026-11-15)
 
 
