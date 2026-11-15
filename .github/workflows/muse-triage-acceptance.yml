@@ -1,0 +1,150 @@
+# TEMPORARY SYNTHETIC ACCEPTANCE ONLY. Remove after the bounded live test.
+# Production audit-triage eligibility and failed-run checks are not modified.
+name: muse-triage-acceptance
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: muse-triage-acceptance
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: >-
+      vars.MUSE_AUDIT_TRIAGE_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.repository.owner.type == 'Organization' &&
+      github.event.sender.type == 'User' &&
+      github.actor == 'smorin' && github.triggering_actor == 'smorin' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Check out trusted triage configuration
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Authorize trigger and prepare frozen failure bundle
+        id: prepare
+        run: python3 .github/scripts/muse_triage_acceptance.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MUSE_TRIAGE_TRUSTED_SHA: ${{ steps.checkout.outputs.commit }}
+          MUSE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+
+      - name: Check Meta credential is configured
+        if: steps.prepare.outputs.should_run == 'true'
+        run: test -n "$META_MUSE_CI_API_KEY"
+        env:
+          META_MUSE_CI_API_KEY: ${{ secrets.META_MUSE_CI_API_KEY }}
+
+      - name: Create triage branch
+        if: steps.prepare.outputs.should_run == 'true'
+        run: git checkout -b "$BRANCH"
+        env:
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+
+      - name: Diagnose and repair with Muse Spark
+        id: muse
+        if: steps.prepare.outputs.should_run == 'true'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1; CLI 2.1.325
+        env:
+          ANTHROPIC_BASE_URL: https://api.meta.ai
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.META_MUSE_CI_API_KEY }}
+          ANTHROPIC_MODEL: ${{ steps.prepare.outputs.model }}
+          ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ steps.prepare.outputs.model }}
+          ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ steps.prepare.outputs.model }}
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: ${{ steps.prepare.outputs.model }}
+          ANTHROPIC_SMALL_FAST_MODEL: ${{ steps.prepare.outputs.model }}
+          CLAUDE_CODE_SUBAGENT_MODEL: ${{ steps.prepare.outputs.model }}
+          ENABLE_TOOL_SEARCH: "true"
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: ${{ secrets.META_MUSE_CI_API_KEY }}
+          prompt: ${{ steps.prepare.outputs.prompt }}
+          settings: ${{ steps.prepare.outputs.settings }}
+          track_progress: "false"
+          use_sticky_comment: "false"
+          classify_inline_comments: "false"
+          include_fix_links: "false"
+          use_commit_signing: "false"
+          additional_permissions: "actions: read"
+          claude_args: >-
+            --restricted
+            --disable-slash-commands
+            --setting-sources user
+            --strict-mcp-config
+            --settings "${{ steps.prepare.outputs.settings }}"
+            --add-dir "${{ steps.prepare.outputs.ci_logs }}"
+            --model "${{ steps.prepare.outputs.model }}"
+            --tools "Read,Glob,Grep,WebFetch,WebSearch,ToolSearch,ListMcpResourcesTool,ReadMcpResourceTool,LSP,WaitForMcpServers,CronList,ListAgents,TaskGet,TaskList,Edit,Write"
+            --permission-mode dontAsk
+            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,ToolSearch,ListMcpResourcesTool,ReadMcpResourceTool,LSP,WaitForMcpServers,CronList,ListAgents,TaskGet,TaskList,mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log"
+            --disallowedTools "Bash,PowerShell,MultiEdit,NotebookEdit,Agent,Task,Skill,mcp__github_file_ops__commit_files,mcp__github_file_ops__delete_files"
+            --max-turns 20
+
+      - name: Validate repair before publication
+        id: validate
+        if: always() && steps.prepare.outputs.should_run == 'true'
+        run: |
+          python3 .github/scripts/muse_triage_acceptance.py validate-fixture
+          python3 "$MUSE_TRIAGE_HELPER" validate triage
+        env:
+          MUSE_ACTION_OUTCOME: ${{ steps.muse.outcome }}
+          MUSE_ACTION_CONCLUSION: ${{ steps.muse.outputs.conclusion }}
+          MUSE_EXECUTION_FILE: ${{ steps.muse.outputs.execution_file }}
+
+      - name: Commit repair
+        id: commit
+        if: steps.validate.outcome == 'success' && steps.validate.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+        run: |
+          set -euo pipefail
+          run_id="${BRANCH#bot/weekly-audit-}"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "test(docs): synthetic acceptance run ${run_id}"
+          git push -u origin "$BRANCH"
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create triage PR
+        id: create-pr
+        if: steps.commit.outcome == 'success' && steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+        run: |
+          set -euo pipefail
+          run_id="${BRANCH#bot/weekly-audit-}"
+          base="$(gh api "repos/$GH_REPO" --jq .default_branch)"
+          body="$(printf 'SYNTHETIC ACCEPTANCE run %s.\n\nNever merge this generated test PR. No actual weekly-audit failure was triaged. Metadata/logs are fixtures; Action, Muse, scoped edits, validation and PR publication are real. URL verification follows.\nAcceptance run: https://github.com/%s/actions/runs/%s\n' "$run_id" "$GITHUB_REPOSITORY" "$run_id")"
+          number="$(gh api --method POST "repos/$GH_REPO/pulls" \
+            --raw-field head="$BRANCH" --raw-field base="$base" \
+            --raw-field title="test(docs): SYNTHETIC ACCEPTANCE run ${run_id}" \
+            --raw-field body="$body" --jq .number)"
+          if [[ ! "$number" =~ ^[1-9][0-9]*$ ]]; then
+            echo "PR creation did not return a positive PR number." >&2
+            exit 1
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Verify scope and touched URLs
+        if: always() && steps.create-pr.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MUSE_CI_PR: ${{ steps.create-pr.outputs.number }}
+        run: python3 "$MUSE_TRIAGE_HELPER" finish triage

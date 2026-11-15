@@ -156,7 +156,10 @@ exclude = [
   "docs/source/conf.py",
   "src/lost_sessions/_version.py",
   "prototypes",                    # P0004 template-press engine prototypes (own lint config in template-press)
-  ".github/scripts/muse_ci.py",    # vendored from muse-github-setup; its installer refuses edited managed files
+  # Vendored from muse-github-setup; the installer refuses edited managed files.
+  ".github/scripts/muse_ci.py",
+  ".github/scripts/muse_audit_triage.py",
+  ".github/muse-audit-triage/runtime.py",
 ]
 # Per-file-ignores
 [tool.ruff.lint.pycodestyle]
