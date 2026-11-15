@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0](https://github.com/smorinlabs/lost-sessions/compare/v0.2.1...v0.3.0) (2026-11-15)
+
+
+### Features
+
+* **evidence:** add optional session evidence storage ([dc4be6d](https://github.com/smorinlabs/lost-sessions/commit/dc4be6d2d0ce57536798c33315f6a690585e2b00))
+* **evidence:** add optional session records and companion skill ([4cea44d](https://github.com/smorinlabs/lost-sessions/commit/4cea44d76725bbde695441d82e07d09a975030aa))
+* **evidence:** expose optional evidence commands ([810e7ce](https://github.com/smorinlabs/lost-sessions/commit/810e7ce4628611027efb4d3ad566608a4a366b9e))
+
+
+### Bug Fixes
+
+* **evidence:** correlate the latest ending with its opening ([086f6ed](https://github.com/smorinlabs/lost-sessions/commit/086f6edb49b79c1a02aea15f46639d2a62c05f7e))
+* **evidence:** enforce receipt size and compact json errors ([8e5ea0d](https://github.com/smorinlabs/lost-sessions/commit/8e5ea0da02903fb438aa183218ac3fceecc93562))
+* **evidence:** handle empty stores and ignored hook payloads ([d7f68be](https://github.com/smorinlabs/lost-sessions/commit/d7f68becdfc2cb448e124a885143ea0118c6d84a))
+* **evidence:** support plugin checkouts without symlinks ([3821135](https://github.com/smorinlabs/lost-sessions/commit/38211356addb9b2f4304a844b4af2335e765bb23))
+* **evidence:** tolerate writer contention across platforms ([d73a3cc](https://github.com/smorinlabs/lost-sessions/commit/d73a3cc72f3be9aa254b6d0ea54b39dd2f9b8717))
+* **rex:** run the shell fallback under a Bourne-family shell ([8e31a91](https://github.com/smorinlabs/lost-sessions/commit/8e31a918647d55e34724c3ef1e1adcbdc62ab05f))
+* **rex:** tabs fall back to a shell prompt when the agent exits ([5cd47aa](https://github.com/smorinlabs/lost-sessions/commit/5cd47aa44893ee75860f546b5ae6daf96ba8e40c))
+
 ## [0.2.1](https://github.com/smorinlabs/lost-sessions/compare/v0.2.0...v0.2.1) (2026-11-14)
 
 
