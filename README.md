@@ -29,6 +29,9 @@ releases, and a PyPI package, follow once publishing is set up.
 | `lost-sessions workspaces` | The Herdr workspaces and Rex sessions you can open sessions in |
 | `lost-sessions history [--json]` | Every action taken, from `${XDG_STATE_HOME:-~/.local/state}/lost-sessions/history.jsonl` |
 | `lost-sessions inventory [--json]` | Read-only inventory of every agent session on this machine |
+| `lost-sessions inventory --evidence [--json]` | The same inventory with optional session evidence |
+| `lost-sessions evidence record --file FILE [--json]` | Explicitly record an event or work assessment |
+| `lost-sessions evidence list\|view --tool TOOL --session ID [--json]` | Read evidence history or a combined view |
 | `lost-sessions plugins [--all]` | Installed plugins, as JSON |
 | `lost-sessions install PKG…` / `uninstall PKG…` | Add or remove plugins in the `uv tool` install |
 
@@ -37,6 +40,14 @@ since its start: by default 00:00 on the day before the boot. `--since` sets
 that start, as a date (`--since 2026-11-09`) or a duration back from now
 (`--since 3d`); pick an earlier start to widen the window. Running sessions
 and sessions a manager restores are hidden unless `--all`.
+
+## Optional session evidence
+
+Optional evidence preserves opening/ending observations and scoped work
+assessments without changing recovery decisions. See the
+[evidence reference](docs/source/reference/session_evidence.md) and the
+[companion skill](docs/skills/lost-sessions.md). Installing the skill does not
+enable lifecycle hooks; hook templates are a separate opt-in.
 
 ## Library
 

@@ -1,0 +1,14 @@
+{
+  "name": "lost-sessions",
+  "owner": {
+    "name": "smorinlabs"
+  },
+  "plugins": [
+    {
+      "name": "lost-sessions",
+      "source": "./plugins/lost-sessions",
+      "description": "Recover lost agent sessions and keep optional session evidence.",
+      "version": "0.1.0"
+    }
+  ]
+}
