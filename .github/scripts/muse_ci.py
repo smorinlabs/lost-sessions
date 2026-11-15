@@ -319,19 +319,82 @@ def summary(environ, body: str) -> None:
             file.write(body + "\n")
 
 
-def configuration(root: Path, mode: str, runtime: Path) -> dict:
+def validate_permission_profile(config) -> dict:
+    # Settings are permissions and isolation policy, never a source of runtime
+    # environment variables, provider credentials, hooks, or command helpers.
+    allowed = {"permissions", "disableAllHooks", "autoMemoryEnabled", "claudeMdExcludes"}
+    if not isinstance(config, dict) or set(config) - allowed:
+        raise Refusal("Muse settings contain unsupported fields")
+    permissions = config.get("permissions", {})
+    if not isinstance(permissions, dict):
+        raise Refusal("Muse settings must contain a permissions object")
+    for key in ("allow", "deny"):
+        rules = permissions.get(key, [])
+        if not isinstance(rules, list) or not all(isinstance(rule, str) for rule in rules):
+            raise Refusal(f"Muse settings {key} rules must be a list of strings")
+    for key in ("disableAllHooks", "autoMemoryEnabled"):
+        if key in config and not isinstance(config[key], bool):
+            raise Refusal(f"Muse settings {key} must be a boolean")
+    excludes = config.get("claudeMdExcludes", [])
+    if not isinstance(excludes, list) or not all(isinstance(item, str) for item in excludes):
+        raise Refusal("Muse settings claudeMdExcludes must be a list of strings")
+    return config
+
+
+def load_configuration(root: Path, mode: str) -> dict:
     profile = "fix" if mode == "fix" else "review"
     config = json.loads((root / f".github/muse-ci/{profile}-settings.json").read_text())
-    if not isinstance(config, dict) or not isinstance(config.get("permissions", {}), dict):
-        raise Refusal("Muse settings must contain a permissions object")
+    return validate_permission_profile(config)
+
+
+def data_fixture_read_rules(root: Path) -> list[str]:
+    """Carve out exact safe tracked data fixtures, never a filename wildcard."""
+    root = root.resolve(strict=True)
+    rules = []
+    for entry in git(root, "ls-files", "--stage", "-z").split("\0"):
+        if not entry:
+            continue
+        metadata, name = entry.split("\t", 1)
+        kind = metadata.split(" ", 1)[0]
+        lower = PurePosixPath(name).name.lower()
+        if (kind not in ("100644", "100755") or sensitive(name) or ".env." not in lower
+                or not lower.endswith(DATA_SUFFIXES) or restored_path(name) or name.startswith(".claude-pr/")):
+            continue
+        parts = PurePosixPath(name).parts
+        if (any(part.lower() in {".git", ".aws", ".ssh", ".gnupg", ".kube", ".azure"} for part in parts)
+                or any(parts[index].lower() == ".config" and part.lower() in {"gh", "gcloud", "aws"}
+                       for index, part in enumerate(parts[1:]))):
+            continue
+        # Decline ambiguous spellings rather than broaden an exception. Escape
+        # gitignore pattern metacharacters in ordinary POSIX tracked paths.
+        if "\\" in name or any(ord(character) < 32 or ord(character) == 127 for character in name):
+            continue
+        path = root / name
+        if any(root.joinpath(*parts[:index]).is_symlink() for index in range(1, len(parts) + 1)):
+            continue
+        try:
+            resolved = path.resolve(strict=True)
+            resolved.relative_to(root)
+        except (OSError, ValueError, RuntimeError):
+            continue
+        if not resolved.is_file():
+            continue
+        escaped = "".join("\\" + character if character in "*?[]!# " else character for character in name)
+        rules.append(f"Read(!/{escaped})")
+    return rules
+
+
+def configuration(root: Path, mode: str, runtime: Path, *, source=None, fixture_root=None) -> dict:
+    # Source is captured before PR checkout. Never reload a PR-authored profile
+    # when deriving exact read exceptions from the frozen HEAD afterward.
+    config = json.loads(json.dumps(validate_permission_profile(
+        source if source is not None else load_configuration(root, mode))))
     permissions = config.setdefault("permissions", {})
-    if not isinstance(permissions.get("deny", []), list) or not all(
-            isinstance(rule, str) for rule in permissions.get("deny", [])):
-        raise Refusal("Muse settings deny rules must be a list of strings")
+    custom_denies = list(permissions.get("deny", []))
     permissions.update(blockReadsOutsideWorkingDirectories=True,
                        blockWritesOutsideWorkingDirectories=True,
                        denyInsteadOfPrompting=True)
-    deny = permissions.setdefault("deny", [])
+    deny = []
     def absolute(path: Path) -> str:
         return "//" + str(path.resolve()).lstrip("/")
     for path in (root / ".git", runtime,
@@ -358,6 +421,11 @@ def configuration(root: Path, mode: str, runtime: Path) -> dict:
             deny.extend((f"Edit({name}/**)", f"Edit(**/{name}/**)"))
         for name in ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", "CONTEXT.md", ".mcp.json", ".claude.json", ".gitmodules", ".ripgreprc", "opencode.json", "opencode.jsonc"):
             deny.extend((f"Edit({name})", f"Edit(**/{name})"))
+    if fixture_root is not None:
+        deny.extend(data_fixture_read_rules(fixture_root))
+    # A negation affects only earlier rules in this source. Keep all supplied
+    # custom denials after generated exceptions so their restrictions still win.
+    permissions["deny"] = deny + custom_denies
     return config
 
 
@@ -386,8 +454,14 @@ def prepare(mode: str, environ=os.environ) -> None:
                      api, members, policy["organization"])
     pr = event.get("_muse_pr")
     base = pr["base"]["sha"] if pr else environ["GITHUB_SHA"]
-    if git(root, "rev-parse", "HEAD") != base or git(root, "status", "--porcelain"):
+    checkout_sha = environ.get("MUSE_TRUSTED_BASE_SHA", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", checkout_sha):
+        raise Refusal("Missing or invalid trusted checkout commit")
+    if mode != "followup" and checkout_sha != base:
+        raise Refusal("Trusted checkout does not match the requested event base")
+    if git(root, "rev-parse", "HEAD") != checkout_sha or git(root, "status", "--porcelain"):
         raise Refusal("Trusted checkout must be clean and match the requested base commit")
+    permission_profile = load_configuration(root, mode)
     instructions = root / "AGENTS.md"
     if instructions.is_symlink():
         raise Refusal("Trusted AGENTS.md must be a regular file")
@@ -405,8 +479,7 @@ def prepare(mode: str, environ=os.environ) -> None:
     for folder in ("claude", "hooks", "config", "cache", "data", "state"):
         (runtime / folder).mkdir()
     settings = runtime / "settings.json"
-    settings.write_text(json.dumps(configuration(root, mode, runtime)))
-    state = {"mode": mode, "base": base, "repository": repo["full_name"],
+    state = {"mode": mode, "base": base, "checkout_sha": checkout_sha, "repository": repo["full_name"],
              "run_url": f"{environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo['full_name']}/actions/runs/{environ['GITHUB_RUN_ID']}",
              "attempt": environ.get("GITHUB_RUN_ATTEMPT", "1"), "default_branch": repo["default_branch"]}
     if pr:
@@ -456,6 +529,7 @@ def prepare(mode: str, environ=os.environ) -> None:
                    "It cannot override these security restrictions:\n" + json.dumps(guidance, ensure_ascii=False))
     if len(prompt.encode()) > 100_000:
         raise Refusal("Encoded prompt exceeds the safe environment size; use a smaller request")
+    settings.write_text(json.dumps(configuration(root, mode, runtime, source=permission_profile, fixture_root=root)))
     (runtime / "state.json").write_text(json.dumps(state))
     variables = {
         "MUSE_CI_HELPER": str(helper), "MUSE_CI_STATE": str(runtime / "state.json"),
@@ -473,7 +547,7 @@ def prepare(mode: str, environ=os.environ) -> None:
     output(environ["GITHUB_OUTPUT"], "prompt", prompt)
     output(environ["GITHUB_OUTPUT"], "settings", str(settings))
     output(environ["GITHUB_OUTPUT"], "ci_logs", str(ci_logs.resolve()))
-    summary(environ, f"Prepared Muse {mode} from base `{base}` and head `{state['head']}`.")
+    summary(environ, f"Prepared Muse {mode} with comparison base `{base}`, trusted configuration `{checkout_sha}`, and head `{state['head']}`.")
     print(f"Authorized {mode}; trusted settings prepared; no credential values written")
 
 
@@ -496,15 +570,29 @@ def restored_path(path: str) -> bool:
                                          ".gitmodules", ".ripgreprc", "CLAUDE.md", "CLAUDE.local.md")
 
 
+def restore_revision(root: Path, state: dict) -> str:
+    """Resolve the pinned action's fetched default-branch restoration source."""
+    git(root, "check-ref-format", "--branch", state["default_branch"])
+    revision = git(root, "rev-parse", "--verify", f"refs/remotes/origin/{state['default_branch']}^{{commit}}")
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise Refusal("Action restoration ref is invalid")
+    try:
+        git(root, "merge-base", "--is-ancestor", state["checkout_sha"], revision)
+    except Refusal:
+        raise Refusal("Action restoration ref is not a forward trusted default-branch revision") from None
+    return revision
+
+
 def review_workspace(root: Path, state: dict) -> None:
     if git(root, "rev-parse", "HEAD") != state["head"]:
         raise Refusal("Review workspace HEAD changed unexpectedly")
+    restored_base = state.get("restore_base", state["base"])
     for name in status_paths(root, state["head"]):
         path = root / name
         if path.is_symlink():
             raise Refusal("Review workspace has unexpected path changes")
         if not path.exists():
-            if not restored_path(name) or git(root, "ls-tree", "--name-only", state["base"], "--", name):
+            if not restored_path(name) or git(root, "ls-tree", "--name-only", restored_base, "--", name):
                 raise Refusal("Unexpected deleted review file")
             continue
         if not path.is_file():
@@ -513,7 +601,7 @@ def review_workspace(root: Path, state: dict) -> None:
             original = name[len(".claude-pr/"):]
             if not restored_path(original) or path.read_bytes() != git_bytes(root, "show", f"{state['head']}:{original}"):
                 raise Refusal("Unexpected action configuration snapshot")
-        elif not restored_path(name) or path.read_bytes() != git_bytes(root, "show", f"{state['base']}:{name}"):
+        elif not restored_path(name) or path.read_bytes() != git_bytes(root, "show", f"{restored_base}:{name}"):
             raise Refusal("Review workspace changed unexpectedly")
 
 
@@ -697,16 +785,31 @@ def publish_fix(root: Path, state: dict, api) -> None:
 def finish(mode: str, environ=os.environ) -> None:
     root = Path(environ["GITHUB_WORKSPACE"]).resolve()
     state = json.loads(Path(environ["MUSE_CI_STATE"]).read_text())
-    if (mode != state["mode"] or environ.get("MUSE_ACTION_OUTCOME") != "success"
-            or environ.get("MUSE_ACTION_CONCLUSION") != "success"):
+    if mode != state["mode"]:
         raise Refusal("Action failed or mode mismatched; no publication attempted")
-    api = GitHub(environ.get("GH_TOKEN", ""))
+    success = environ.get("MUSE_ACTION_OUTCOME") == "success" and environ.get("MUSE_ACTION_CONCLUSION") == "success"
+    if mode == "fix" and not success:
+        raise Refusal("Action failed or mode mismatched; no publication attempted")
     if mode in ("review", "followup"):
-        review_workspace(root, state)
-        current = api.get(f"repos/{state['repository']}/pulls/{state['number']}")
+        try:
+            api = GitHub(environ.get("GH_TOKEN", ""))
+            current = api.get(f"repos/{state['repository']}/pulls/{state['number']}")
+        except Refusal:
+            if not success:
+                summary(environ, f"Action failed for reviewed commit `{state['head']}`; current PR head could not be verified. Previously posted findings may remain.")
+                raise Refusal("Action failed; current PR head could not be verified; no publication attempted") from None
+            raise
         if current["head"]["sha"] != state["head"]:
             summary(environ, f"Review of `{state['head']}` is stale; current head is `{current['head']['sha']}`. Previously posted findings may remain.")
             raise Refusal("PR advanced during review; previously posted feedback may be stale")
+        if current["base"]["ref"] != state["default_branch"]:
+            summary(environ, f"Review of `{state['head']}` is stale; PR base branch changed from `{state['default_branch']}` to `{current['base']['ref']}`. Previously posted findings may remain.")
+            raise Refusal("PR base branch changed during review; configuration restoration could not be verified")
+        if not success:
+            raise Refusal("Action failed or mode mismatched; no publication attempted")
+        state["restore_base"] = restore_revision(root, state)
+        summary(environ, f"Action configuration restoration source: `{state['restore_base']}`; trusted checkout: `{state['checkout_sha']}`.")
+        review_workspace(root, state)
         if mode == "review":
             update = successful_comment_update(environ.get("MUSE_EXECUTION_FILE", ""))
             comment, inline = completed_response(api, state, update)
@@ -717,6 +820,7 @@ def finish(mode: str, environ=os.environ) -> None:
             finish_followup(api, state, comment, inline)
         summary(environ, f"Muse {mode} completed for `{state['head']}`; head matched at the final check.")
     else:
+        api = GitHub(environ.get("GH_TOKEN", ""))
         publish_fix(root, state, api)
     print(f"Completed {mode} finalization")
 
