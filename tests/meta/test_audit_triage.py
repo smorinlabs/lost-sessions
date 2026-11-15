@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = yaml.safe_load((ROOT / ".github/workflows/audit-triage.yml").read_text())
 
 _spec = importlib.util.spec_from_file_location(
-    "audit_triage", ROOT / ".github/scripts/audit_triage.py"
+    "audit_triage", ROOT / ".github/scripts/muse_audit_triage.py"
 )
 audit_triage = importlib.util.module_from_spec(_spec)
 sys.modules["audit_triage"] = audit_triage
@@ -54,16 +54,21 @@ def test_triage_job_permissions_are_minimal():
 
 
 def test_muse_credential_is_scoped_to_agent_and_presence_check():
-    holders = {
-        "Diagnose and repair with Muse Spark",
-        "Check Meta credential is configured",
-    }
+    agent = _step_named("Diagnose and repair with Muse Spark")
+    assert agent["env"]["ANTHROPIC_AUTH_TOKEN"] == "${{ secrets.META_MUSE_CI_API_KEY }}"
+    assert agent["with"]["anthropic_api_key"] == "${{ secrets.META_MUSE_CI_API_KEY }}"
+    assert (
+        _step_named("Check Meta credential is configured")["env"][
+            "META_MUSE_CI_API_KEY"
+        ]
+        == "${{ secrets.META_MUSE_CI_API_KEY }}"
+    )
     for step in _job()["steps"]:
-        env = step.get("env", {})
-        if step["name"] in holders:
-            assert env["META_MUSE_CI_API_KEY"] == "${{ secrets.META_MUSE_CI_API_KEY }}"
-        else:
-            assert "META_MUSE_CI_API_KEY" not in env, step["name"]
+        if step["name"] not in {
+            "Diagnose and repair with Muse Spark",
+            "Check Meta credential is configured",
+        }:
+            assert "META_MUSE_CI_API_KEY" not in str(step)
 
 
 def test_no_step_continues_on_error():
@@ -71,22 +76,44 @@ def test_no_step_continues_on_error():
         assert not step.get("continue-on-error", False), step["name"]
 
 
-def test_finish_reports_even_when_the_agent_fails():
-    finish = _step_named("Verify scope and touched URLs")
-    assert finish["if"] == "always() && steps.prepare.outputs.should_run == 'true'"
+def test_validation_runs_on_failure_but_publication_requires_success():
+    validate = _step_named("Validate repair before publication")
+    assert validate["if"] == "always() && steps.prepare.outputs.should_run == 'true'"
+    assert validate["env"]["MUSE_ACTION_OUTCOME"] == "${{ steps.muse.outcome }}"
+    assert (
+        validate["env"]["MUSE_ACTION_CONCLUSION"]
+        == "${{ steps.muse.outputs.conclusion }}"
+    )
+    assert "steps.validate.outcome == 'success'" in _step_named("Commit repair")["if"]
+    assert (
+        _step_named("Verify scope and touched URLs")["if"]
+        == "always() && steps.create-pr.outcome == 'success'"
+    )
 
 
-def test_agent_prompt_passes_through_the_environment():
+def test_action_uses_prepared_prompt_and_scoped_permissions():
     agent = _step_named("Diagnose and repair with Muse Spark")
-    assert agent["env"]["TRIAGE_PROMPT"] == "${{ steps.prepare.outputs.prompt }}"
-    assert '"$TRIAGE_PROMPT"' in agent["run"]
+    assert agent["uses"].startswith(
+        "anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc"
+    )
+    assert agent["with"]["prompt"] == "${{ steps.prepare.outputs.prompt }}"
+    args = agent["with"]["claude_args"]
+    assert "--permission-mode dontAsk" in args and "--max-turns 20" in args
+    assert "--settings" in args and "--strict-mcp-config" in args
+    allowed = args.split("--allowedTools", 1)[1].split("--disallowedTools", 1)[0]
+    assert "Edit" not in allowed and "Write" not in allowed
+    assert agent["with"]["classify_inline_comments"] == "false"
 
 
-def test_dispatch_input_reaches_shell_through_the_environment():
-    resolve = _step_named("Validate target run and resolve audited commit")
-    assert resolve["env"]["DISPATCH_RUN_ID"] == "${{ inputs.run_id }}"
-    assert "inputs.run_id" not in resolve["run"]
-    assert 'case "$DISPATCH_RUN_ID" in' in resolve["run"]
+def test_preparation_uses_trusted_checkout_commit():
+    checkout = _step_named("Check out trusted triage configuration")
+    prepare = _step_named("Authorize trigger and prepare frozen failure bundle")
+    assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
+    assert checkout["with"]["persist-credentials"] is False
+    assert (
+        prepare["env"]["MUSE_TRIAGE_TRUSTED_SHA"]
+        == "${{ steps.checkout.outputs.commit }}"
+    )
 
 
 @pytest.fixture
@@ -354,22 +381,23 @@ def test_dispatch_path_rejects_non_numeric_run_ids(run_id):
         )
 
 
-def test_agent_profile_is_docs_only_and_locked_down():
-    profile = json.loads((ROOT / ".opencode/audit-triage/triage.json").read_text())
-    assert profile["default_agent"] == "muse-triage"
-    assert profile["permission"]["*"] == "deny"
-    assert profile["permission"]["edit"] == {"*": "deny", "docs/*": "allow"}
-    assert profile["permission"]["read"] == {"*": "deny", "docs/*": "allow"}
-    assert profile["enabled_providers"] == ["model_api"]
+def test_agent_profile_uses_readonly_tools_and_no_global_edit_grant():
+    profile = json.loads(
+        (ROOT / ".github/muse-audit-triage/triage-settings.json").read_text()
+    )
+    permissions = profile["permissions"]
+    assert permissions["defaultMode"] == "dontAsk"
+    assert "Read" in permissions["allow"] and "WebFetch" in permissions["allow"]
+    assert "Edit" not in permissions["allow"] and "Write" not in permissions["allow"]
+    assert "Bash" in permissions["deny"] and profile["disableAllHooks"] is True
 
 
 def test_policy_pins_model_and_organization():
-    policy = json.loads((ROOT / ".opencode/audit-triage/policy.json").read_text())
-    assert policy["schema_version"] == 1
-    assert (
-        policy["model"] == audit_triage.MODEL == "model_api/muse-spark-1.3-contributor"
-    )
+    policy = json.loads((ROOT / ".github/muse-audit-triage/policy.json").read_text())
+    assert policy["schema_version"] == 2
+    assert policy["model"] == "muse-spark-1.3-contributor"
     assert policy["organization"] == "smorinlabs"
+    assert policy["activation_variable"] == "MUSE_AUDIT_TRIAGE_ENABLED"
 
 
 _JOB_LOG_URL = "https://api.github.com/repos/o/r/actions/jobs/106294708263/logs"
@@ -489,45 +517,3 @@ def test_download_job_log_preserves_fetch_failure_paths(log_transport, redirect,
         audit_triage.download_logs(_JOB_LOG_URL, "fixture-token")
     if redirect:
         assert requests[1].get_header("Authorization") is None
-
-
-GUARD = "Refuse snapshots that pin another model"
-
-
-def test_snapshot_model_guard_runs_before_the_audited_helper():
-    names = [step["name"] for step in _job()["steps"]]
-    assert names.index("Check out audited commit") < names.index(GUARD)
-    assert names.index(GUARD) < names.index(
-        "Authorize trigger and prepare frozen failure bundle"
-    )
-    assert _step_named(GUARD)["env"]["AGENT_MODEL"] == audit_triage.MODEL
-    agent = _step_named("Diagnose and repair with Muse Spark")
-    assert agent["env"]["AGENT_MODEL"] == audit_triage.MODEL
-    assert '--model "$AGENT_MODEL"' in agent["run"]
-
-
-@pytest.mark.parametrize(
-    "model, refused",
-    [
-        ("model_api/muse-spark-1.3-contributor", False),
-        ("model_api/muse-spark-1.3", True),
-    ],
-)
-def test_snapshot_model_guard_refuses_older_policies(tmp_path, model, refused):
-    if os.name == "nt":
-        pytest.skip("Audit triage workflow runs on Ubuntu")
-    policy = tmp_path / ".opencode/audit-triage/policy.json"
-    policy.parent.mkdir(parents=True)
-    policy.write_text(json.dumps({"schema_version": 1, "model": model}))
-    step = _step_named(GUARD)
-    result = subprocess.run(
-        ["/bin/bash", "-e", "-o", "pipefail", "-c", step["run"]],
-        cwd=tmp_path,
-        env={"PATH": os.environ["PATH"], **step["env"]},
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert (result.returncode != 0) is refused
-    if refused:
-        assert "pins model_api/muse-spark-1.3" in result.stderr
