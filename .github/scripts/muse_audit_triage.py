@@ -11,14 +11,17 @@ from __future__ import annotations
 
 import argparse
 import email.message
+import http.client
 import ipaddress
 import json
 import os
 import re
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -226,55 +229,96 @@ def scope_ok(paths: list[str]) -> bool:
     return True
 
 
-def assert_public_url(url: str) -> None:
-    """Refuse non-public verification targets (SSRF guard).
-
-    Touched URLs come from agent-authored diffs, so verification must never
-    probe loopback, private, or cloud-metadata endpoints from the runner.
-    """
-    parts = urllib.parse.urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
-        raise RefusalError(f"Refusing to verify non-HTTP(S) URL: {url[:80]}")
-    if parts.username or parts.password:
-        raise RefusalError(f"Refusing to verify URL with credentials: {url[:80]}")
+def _public_target(url: str) -> tuple[urllib.parse.SplitResult, list[tuple]]:
+    """Resolve once; retain only validated numeric socket destinations."""
     try:
-        port = parts.port or (443 if parts.scheme == "https" else 80)
+        parts = urllib.parse.urlsplit(url)
+    except ValueError as error:
+        raise RefusalError("Refusing to verify malformed URL") from error
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise RefusalError("Refusing to verify non-HTTP(S) URL")
+    if parts.username is not None or parts.password is not None:
+        raise RefusalError("Refusing to verify URL with credentials")
+    try:
+        port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
         infos = socket.getaddrinfo(parts.hostname, port, type=socket.SOCK_STREAM)
-    except (socket.gaierror, ValueError, OverflowError) as error:
+    except (socket.gaierror, ValueError, OverflowError, UnicodeError) as error:
         raise RefusalError(
             f"Refusing to verify unresolvable host: {parts.hostname}"
         ) from error
+    if not infos:
+        raise RefusalError("Refusing to verify host without public addresses")
     for info in infos:
-        if not ipaddress.ip_address(info[4][0]).is_global:
+        try:
+            public = info[0] in (socket.AF_INET, socket.AF_INET6) and ipaddress.ip_address(info[4][0]).is_global
+        except (ValueError, TypeError, IndexError) as error:
+            raise RefusalError("Refusing to verify malformed DNS address") from error
+        if not public:
             raise RefusalError(
                 f"Refusing to verify non-public target: {parts.hostname}"
             )
+    # Bound retries even when a domain supplies many public addresses. Every
+    # returned address was checked above, including those outside this slice.
+    return parts, infos[:8]
 
 
-class _VerifyRedirect(urllib.request.HTTPRedirectHandler):
-    """Follow redirects only to public targets, bounded."""
+def assert_public_url(url: str) -> None:
+    """Validate URL policy without making an HTTP request."""
+    _public_target(url)
 
-    def __init__(self, remaining: int) -> None:
-        self.remaining = remaining
+
+def _verify_remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("URL verification timeout")
+    return remaining
+
+
+def _connect_public(infos: list[tuple], deadline: float) -> socket.socket:
+    last_error = None
+    for family, kind, protocol, _, address in infos:
+        connection = socket.socket(family, kind, protocol)
+        try:
+            connection.settimeout(_verify_remaining(deadline))
+            # address is the numeric sockaddr already returned and checked by
+            # getaddrinfo. Do not pass the original hostname to a resolver again.
+            connection.connect(address)
+            return connection
+        except OSError as error:
+            connection.close()
+            last_error = error
+    if last_error is not None:
+        raise last_error
+    raise OSError("No public address available for URL verification")
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, host: str, port: int, infos: list[tuple], deadline: float) -> None:
+        super().__init__(host, port, timeout=_verify_remaining(deadline))
+        self._public_infos, self._deadline = infos, deadline
 
     @override
-    def redirect_request(
-        self,
-        req: urllib.request.Request,
-        fp: IO[bytes],
-        code: int,
-        msg: str,
-        headers: email.message.Message,
-        newurl: str,
-    ) -> urllib.request.Request:
-        if self.remaining <= 0:
-            raise RefusalError("Too many redirects while verifying URL")
-        assert_public_url(urllib.parse.urljoin(req.full_url, newurl))
-        self.remaining -= 1
-        result = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if result is None:
-            raise RefusalError("Redirect handler declined the request")
-        return result
+    def connect(self) -> None:
+        self.sock = _connect_public(self._public_infos, self._deadline)
+        self.sock.settimeout(_verify_remaining(self._deadline))
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host: str, port: int, infos: list[tuple], deadline: float) -> None:
+        super().__init__(host, port, timeout=_verify_remaining(deadline), context=ssl.create_default_context())
+        self._public_infos, self._deadline = infos, deadline
+
+    @override
+    def connect(self) -> None:
+        connection = _connect_public(self._public_infos, self._deadline)
+        try:
+            connection.settimeout(_verify_remaining(self._deadline))
+            # Preserve the original hostname for SNI and certificate/hostname
+            # verification. Only the TCP destination is replaced with its IP.
+            self.sock = self._context.wrap_socket(connection, server_hostname=self.host)
+        except (OSError, ValueError):
+            connection.close()
+            raise
 
 
 def verdict_for_status(code: int) -> tuple[str, str]:
@@ -295,21 +339,35 @@ def verdict_for_status(code: int) -> tuple[str, str]:
 
 def check_url(url: str) -> tuple[str, str]:
     try:
-        assert_public_url(url)
+        parts, infos = _public_target(url)
     except RefusalError as error:
         return ("skip", str(error))
-    request = urllib.request.Request(  # noqa: S310 -- target validated public above
-        url,
-        method="HEAD",
-        headers={"User-Agent": "muse-audit-triage/1.0"},
-    )
-    opener = urllib.request.build_opener(_VerifyRedirect(MAX_VERIFY_REDIRECTS))
+    deadline = time.monotonic() + VERIFY_TIMEOUT
     try:
-        with opener.open(request, timeout=VERIFY_TIMEOUT) as response:
-            return verdict_for_status(response.status)
-    except urllib.error.HTTPError as error:
-        return verdict_for_status(error.code)
-    except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        for redirects in range(MAX_VERIFY_REDIRECTS + 1):
+            host = parts.hostname.encode("idna").decode("ascii")
+            port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+            connection_type = _PinnedHTTPSConnection if parts.scheme == "https" else _PinnedHTTPConnection
+            connection = connection_type(host, port, infos, deadline)
+            host_header = f"[{host}]" if ":" in host else host
+            if parts.port is not None:
+                host_header += f":{parts.port}"
+            target = urllib.parse.urlunsplit(("", "", parts.path or "/", parts.query, ""))
+            try:
+                connection.request("HEAD", target, headers={"Host": host_header, "User-Agent": "muse-audit-triage/1.0"})
+                connection.sock.settimeout(_verify_remaining(deadline))
+                response = connection.getresponse()
+                status, location = response.status, response.getheader("Location")
+                response.close()
+            finally:
+                connection.close()
+            if status not in (301, 302, 303, 307, 308) or not location:
+                return verdict_for_status(status)
+            if redirects == MAX_VERIFY_REDIRECTS:
+                raise RefusalError("Too many redirects while verifying URL")
+            url = urllib.parse.urljoin(url, location)
+            parts, infos = _public_target(url)
+    except (OSError, ValueError, http.client.HTTPException) as error:
         return ("fail", f"unreachable ({error})")
     except RefusalError as error:
         return ("fail", str(error))
@@ -331,7 +389,14 @@ def summary(environ: Mapping[str, str], body: str) -> None:
 def guard_module():
     """Load the trusted companion copied alongside this helper."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("muse_triage_guard", (Path(__file__).with_name("runtime.py") if Path(__file__).with_name("runtime.py").exists() else Path(__file__).parent.parent / "muse-audit-triage/runtime.py"))
+    helper = Path(__file__)
+    if helper.parent.name == "scripts" and helper.parent.parent.name == ".github":
+        guard_path = helper.parent.parent / "muse-audit-triage/runtime.py"
+    elif re.fullmatch(r"audit-triage-[0-9a-f]{32}", helper.parent.name):
+        guard_path = helper.with_name("runtime.py")
+    else:
+        raise RefusalError("Unexpected trusted triage helper location")
+    spec = importlib.util.spec_from_file_location("muse_triage_guard", guard_path)
     if spec is None or spec.loader is None:
         raise RefusalError("Missing trusted Muse guard")
     module = importlib.util.module_from_spec(spec)
@@ -371,7 +436,8 @@ def resolve_target_run(
         raise RefusalError(
             "Replay target must be a schedule- or dispatch-triggered run"
         )
-    if not isinstance(run.get("id"), int) or not isinstance(run.get("head_sha"), str):
+    if (not isinstance(run.get("id"), int) or isinstance(run.get("id"), bool)
+            or run["id"] <= 0 or not isinstance(run.get("head_sha"), str)):
         raise RefusalError("Run is missing its id or head SHA")
     return run
 
@@ -459,8 +525,15 @@ def prepare(environ: Mapping[str, str] = os.environ) -> None:
     guard.validate_permission_profile(profile)
     branch = f"bot/weekly-audit-{run_id}"
     pulls = api.get(f"repos/{repo}/pulls?head={owner.get('login')}:{branch}&state=open")
-    if isinstance(pulls, list) and pulls:
+    if not isinstance(pulls, list):
+        raise RefusalError("Unable to verify existing triage PRs")
+    if pulls:
         raise RefusalError(f"Run {run_id} already has a triage PR")
+    refs = api.get(f"repos/{repo}/git/matching-refs/heads/{branch}")
+    if not isinstance(refs, list) or any(not isinstance(item, dict) or not isinstance(item.get("ref"), str) for item in refs):
+        raise RefusalError("Unable to verify existing triage branches")
+    if any(item["ref"] == f"refs/heads/{branch}" for item in refs):
+        raise RefusalError(f"Triage branch {branch} already exists; inspect the branch and recover or create its PR before retrying")
     jobs = api.get(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100")
     if not isinstance(jobs, dict):
         raise RefusalError("Job listing failed")
@@ -475,7 +548,7 @@ def prepare(environ: Mapping[str, str] = os.environ) -> None:
         print(f"No docs failure in run {run_id}; agent run skipped")
         return
     findings: list[str] = []
-    for job in failed[:5]:
+    for job in sorted(failed, key=lambda job: job.get("name") != "docs-linkcheck")[:5]:
         logs = download_logs(
             f"https://api.github.com/repos/{repo}/actions/jobs/{job['id']}/logs",
             environ.get("GH_TOKEN", ""),

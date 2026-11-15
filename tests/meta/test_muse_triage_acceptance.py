@@ -179,7 +179,10 @@ def test_real_prepare_freezes_clean_tree_before_fixture_and_preserves_original_e
     monkeypatch.setattr(acceptance, "load_helper", lambda *args: helper)
     acceptance.prepare(env)
     assert event_path.read_bytes() == original and env == original_env
-    assert len(calls) == 1 and "/pulls?head=" in calls[0]
+    assert len(calls) == 2 and "/pulls?head=" in calls[0]
+    assert calls[1] == (
+        "repos/smorinlabs/lost-sessions/git/matching-refs/heads/bot/weekly-audit-123"
+    )
     assert downloads == []
     assert helper.download_logs("https://other.invalid/log", "fake") == "real log"
     values = acceptance.actions_outputs(output)
