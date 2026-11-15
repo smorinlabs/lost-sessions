@@ -93,7 +93,7 @@ jobs:
             --permission-mode default
             --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,ToolSearch,ListMcpResourcesTool,ReadMcpResourceTool,LSP,WaitForMcpServers,CronList,ListAgents,TaskGet,TaskList,mcp__github_inline_comment__create_inline_comment"
             --disallowedTools "Bash,PowerShell,Edit,Write,MultiEdit,NotebookEdit,Agent,Task,Skill,mcp__github_file_ops__commit_files,mcp__github_file_ops__delete_files"
-            --max-turns 12
+            --max-turns 24
       - name: Validate followup outcome
         if: always() && steps.prepare.outcome == 'success'
         run: python3 "$MUSE_CI_HELPER" finish followup
