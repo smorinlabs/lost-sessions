@@ -26,6 +26,7 @@ confusing reopening, present liveness, closure intent, and work completion.
 - Missing evidence never proves a crash, completion, or explicit closure.
 
 **References**
+- Specification: `docs/superpowers/specs/2026-11-14-optional-session-evidence.md`
 - Design: `docs/design/0007-optional-session-evidence.md`
 - User reference: `docs/source/reference/session_evidence.md`
 - Skill: `plugins/lost-sessions/skills/lost-sessions/SKILL.md`
@@ -42,7 +43,8 @@ confusing reopening, present liveness, closure intent, and work completion.
 - [x] [P02-TS04] Verify authenticated Claude Code and Codex skill workflows
   with isolated evidence stores and independent record readback.
 - [x] [P02-TS05] Verify actual Claude Code startup/end hooks in a temporary session.
-- [x] [P02-T05] Prepare storage PR #29 and dependent CLI/skill PR #28 for review.
+- [x] [P02-T05] Prepare storage/CLI PR #29 and dependent companion/docs PR #28
+  for review.
 - [ ] [P02-T06] Merge and release after review; not part of local implementation.
 
 ### Validation boundaries

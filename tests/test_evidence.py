@@ -94,6 +94,14 @@ def test_missing_run_identity_does_not_claim_correlated_close(tmp_path):
     assert summarize(store.read().records).closure == "end-observed-unmatched"
 
 
+def test_latest_end_without_its_own_opening_is_unmatched(tmp_path):
+    store = Store(tmp_path / "evidence.sqlite3")
+    store.append(event(run_id="a"))
+    store.append(event("ended", 10, run_id="a"))
+    store.append(event("ended", 11, run_id="b"))
+    assert summarize(store.read().records).closure == "end-observed-unmatched"
+
+
 def test_assessment_currency_uses_covered_turn_when_available(tmp_path):
     store = Store(tmp_path / "evidence.sqlite3")
     store.append(

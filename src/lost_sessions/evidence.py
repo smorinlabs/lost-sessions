@@ -333,7 +333,15 @@ def summarize(records: list[Record]) -> Summary:
             for r in opened
         ):
             summary.closure = "ambiguous"
-        elif opened and all(r.run_id for r in opened) and last_end.run_id:
+        elif (
+            opened
+            and all(r.run_id for r in opened)
+            and last_end.run_id
+            and any(
+                r.run_id == last_end.run_id and r.occurred_at < last_end.occurred_at
+                for r in opened
+            )
+        ):
             summary.closure = "end-observed"
         else:
             summary.closure = "end-observed-unmatched"
