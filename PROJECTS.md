@@ -24,6 +24,7 @@ file by hand — see Conventions.
 |-----|-------|------------------------------------------------------------------------|
 | P01 | `[~]` | [Port lost-sessions into a pluggable package](projects/P01-lost-sessions-port.md) (target v0.2.0) |
 | P02 | `[x]` | [Optional session evidence](projects/P02-optional-session-evidence.md) (released in v0.3.0) |
+| P03 | `[~]` | [CI slimming and review-bot noise](projects/P03-ci-slimming-and-review-noise.md) |
 
 ## Conventions
 

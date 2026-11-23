@@ -326,11 +326,9 @@ Use `bun install --frozen-lockfile` inside each additional Git worktree.
 Do not share `node_modules` through a symlink. `.bun-version` selects the
 lockfile writer used by setup and press regeneration.
 
-Optional Claude review runs when the `CLAUDE_CODE_OAUTH_TOKEN` secret is
-configured. Without that credential, its configuration check succeeds and
-reports "Claude review is not configured; skipping." in the log and job summary.
-Checkout and review steps are skipped; no separate enable variable is needed.
-Invalid credentials or failures during a configured review still report errors.
+Automated pull-request review uses Muse (`.github/workflows/muse-pr-review.yml`).
+The template's optional `claude-code-review.yml` workflow was removed because
+Muse replaced it and no `CLAUDE_CODE_OAUTH_TOKEN` secret is configured.
 Commitlint needs `pull-requests: read` to inspect commits on private PRs; the
 workflow declares that permission. Initialize through a branch and PR when the
 repository requires reviews; do not rely on a main-branch bypass.
