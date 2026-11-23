@@ -138,6 +138,7 @@ def test_code_pull_request_skips_release_generation(tmp_path):
     [
         "scripts/release_commits.cjs",
         "scripts/release_please.cjs",
+        "scripts/release-notes.cjs",
         "tests/release/new.test.js",
         "package.json",
         "bun.lock",
@@ -199,6 +200,13 @@ def test_compact_manifest_version_bump_takes_the_fast_path(tmp_path):
     bump = {**RELEASE_BUMP, ".release-please-manifest.json": '{".":"1.1.0"}\n'}
     outputs = _run(tmp_path, bump, head_ref=RELEASE_BRANCH, base_files=base)
     assert outputs == _expect("false", "true", "false")
+
+
+def test_release_branch_with_extra_manifest_change_runs_everything(tmp_path):
+    manifest = '{\n  ".": "1.1.0",\n  "extra": "1.0.0"\n}\n'
+    change = {**RELEASE_BUMP, ".release-please-manifest.json": manifest}
+    outputs = _run(tmp_path, change, head_ref=RELEASE_BRANCH)
+    assert outputs == _expect("true", "false", "false")
 
 
 def test_release_bump_from_a_fork_runs_everything(tmp_path):
