@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2](https://github.com/smorinlabs/lost-sessions/compare/v0.3.1...v0.3.2) (2026-11-24)
+
+
+### Dependencies
+
+* **deps-dev:** bump import-linter from 2.15 to 2.17 ([45e1cb1](https://github.com/smorinlabs/lost-sessions/commit/45e1cb1f9170b586bd8a4e056a86689d2f0058aa))
+* **deps-dev:** bump sphinx-autodoc-typehints from 3.13.8 to 3.17.6 ([5ea3b1f](https://github.com/smorinlabs/lost-sessions/commit/5ea3b1f0526fb0db73b194f3a31b56f6de99eb02))
+* **deps-dev:** bump the lint-and-format group across 1 directory with 3 updates ([14255c1](https://github.com/smorinlabs/lost-sessions/commit/14255c160024775e2a4af084d175f4bd80798fc3))
+* **deps-dev:** bump the test group across 1 directory with 2 updates ([f74588a](https://github.com/smorinlabs/lost-sessions/commit/f74588a78ad8362e074bda6d497e0307b15dc0be))
+* **deps:** bump pluggy from 1.6.0 to 1.7.0 ([8deb0ff](https://github.com/smorinlabs/lost-sessions/commit/8deb0ff50eb93d9b4aa4148fcc99849ac1a9c3b8))
+* **deps:** bump the github-actions group across 1 directory with 3 updates ([9a8f2ef](https://github.com/smorinlabs/lost-sessions/commit/9a8f2effdc7376f7dc3a954a091aa59b344af92b))
+
 ## [0.3.1](https://github.com/smorinlabs/lost-sessions/compare/v0.3.0...v0.3.1) (2026-11-24)
 
 
