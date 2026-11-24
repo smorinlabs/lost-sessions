@@ -288,6 +288,12 @@ def test_merged_jobs_report_every_tool(job, commands):
 @pytest.mark.parametrize(
     ("workflow", "job"),
     [
+        ("ci.yml", None),
+        ("codeql.yml", None),
+        ("commitlint.yml", None),
+        ("large-file-guard.yml", None),
+        ("lint.yml", None),
+        ("secret-scan.yml", None),
         ("dependency-review.yml", None),
     ],
 )
