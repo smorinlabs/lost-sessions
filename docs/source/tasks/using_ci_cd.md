@@ -10,23 +10,28 @@ The main workflow is `.github/workflows/ci.yml`. It runs for pull requests to
 
 | Check | What it validates |
 |---|---|
-| `changes` | Detects code and packaging changes; documentation-only pull requests can skip the heavier jobs. |
-| `lint` | Ruff lint and formatting checks using locked development tools. |
-| `typecheck` | Types under `src/lost_sessions/`. |
-| `import-boundaries` | Import contracts through import-linter. |
+| `changes` | Detects code and packaging changes; documentation-only pull requests can skip the heavier jobs. Also detects release-please version-bump pull requests and release-tooling changes. |
+| `lint` | Ruff lint and formatting, TOML formatting (taplo), shell scripts (ShellCheck) and the Sphinx build with warnings treated as errors. Each tool is its own step and reports even if another fails. |
+| `release-generation` | Release-note generator tests. Runs only when release tooling, its inputs or `ci.yml` change. |
+| `typecheck` | Types under `src/lost_sessions/` (ty) and import contracts (import-linter). |
 | `test` | Python 3.13 on Linux, macOS and Windows; Python 3.14 on Linux. Includes slow tests and excludes provisioned live tests. |
-| `build-smoke` | Builds wheel and source archives, checks metadata, installs both and runs the CLI. |
-| `docs` | Builds Sphinx documentation with warnings treated as errors. |
-| `toml-format-check` | Checks TOML formatting. |
+| `build-smoke` | Builds wheel and source archives, checks metadata, installs both and runs the CLI. Also runs on release-please version-bump pull requests. |
 | `ci-ok` | Aggregates the preceding jobs for branch protection. A failed prerequisite cannot produce a successful aggregate. |
 
 Coverage is collected and uploaded from the Linux/Python 3.13 test job.
 Other test jobs validate runtime compatibility without uploading duplicate coverage.
 Python 3.13 remains the minimum supported version and default development interpreter.
 
+A same-repository release-please pull request whose diff is only the manifest,
+`CHANGELOG.md` and the version line in `pyproject.toml` and `uv.lock` skips
+`typecheck`, `test` and `release-generation`; `lint`, `build-smoke` and
+`ci-ok` still run. Any other change on that branch runs the full set.
+
 `.github/workflows/lint.yml` adds Actionlint, Bandit, spelling, EditorConfig
 and YAML checks. Other workflows handle secret scanning,
-dependency review and CodeQL. Required check names come from
+dependency review and CodeQL. CodeQL runs on pull requests only when Python
+files, `pyproject.toml`, `uv.lock` or its configuration change; pushes to
+`main` and the weekly schedule analyze everything. Required check names come from
 GitHub branch protection and repository rules; keep those rules aligned when
 renaming or removing jobs.
 

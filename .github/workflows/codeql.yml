@@ -16,6 +16,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # P03: path-filtered PR runs. Safe ONLY while this repository has no
+    # code_scanning ruleset rule and CodeQL is not a required status check:
+    # a path-filtered run reports nothing. If a code_scanning rule is ever
+    # added, remove this paths block in the same change. Push to main and
+    # the weekly schedule still analyze every change.
+    paths:
+      - '**/*.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/codeql/**'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '0 4 * * 0'  # weekly, Sunday 04:00 UTC
   public:

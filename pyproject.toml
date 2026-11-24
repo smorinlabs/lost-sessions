@@ -286,7 +286,7 @@ check-filenames = true
 check-hidden = false
 
 # import-linter: architectural import rules for this package. Run via
-# `uv run lint-imports`; wired into `just check` and CI (import-boundaries).
+# `uv run lint-imports`; wired into `just check` and CI (typecheck job).
 [tool.importlinter]
 root_package = "lost_sessions"
 include_external_packages = true
