@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/smorinlabs/lost-sessions/compare/v0.3.2...v0.4.0) (2026-11-25)
+
+
+### Features
+
+* add antigravity (agy) agent plugin, evidence hook, and plugin manifest ([499cd71](https://github.com/smorinlabs/lost-sessions/commit/499cd71d886bfaceddbaa59d86bfbfe67e7b93b1))
+
+
+### Bug Fixes
+
+* **agy:** harden truncated created_at, argv parsing, and resume quoting ([07b94ec](https://github.com/smorinlabs/lost-sessions/commit/07b94ece1ac8367db73a447f6753187ceb7986fe))
+
 ## [0.3.2](https://github.com/smorinlabs/lost-sessions/compare/v0.3.1...v0.3.2) (2026-11-24)
 
 
