@@ -9,7 +9,7 @@ It does not enable hooks or record data merely because it is installed.
 
 From a local checkout, install the companion plugin in your runtime:
 
-- Antigravity (`agy`): `agy plugin install PATH/plugins/lost-sessions`.
+- Antigravity (`agy`): `agy plugin install "PATH/plugins/lost-sessions"`.
 - Claude Code: `/plugin marketplace add PATH`, then
   `/plugin install lost-sessions@lost-sessions`.
 - Codex: `codex plugin marketplace add PATH`, then

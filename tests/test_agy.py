@@ -252,6 +252,13 @@ def test_resume_command_quotes_spaces_and_matches_contract(tmp_path):
     assert s.resume == f"cd '/work/my repo' && agy --conversation {sid}"
 
 
+def test_resume_command_quotes_shell_metacharacters_in_conversation_id(tmp_path):
+    crafted = "target; touch /tmp/x"
+    _create_db(tmp_path, [_full_row(crafted, workspace_uris='["file:///work/alpha"]')])
+    s = _by_id(Antigravity().scan(ScanContext(home=tmp_path)))[crafted]
+    assert s.resume == "cd /work/alpha && agy --conversation 'target; touch /tmp/x'"
+
+
 # --- timestamps, transcript created_at, titles, lineage -----------------------
 
 
@@ -323,6 +330,63 @@ def test_created_from_transcript_line1_and_never_falls_back_to_updated(tmp_path)
 
     # Huge line 1 still extracts created_at within the bounded 64 KiB read.
     assert got[huge_t].created == "2026-11-24T01:02:03Z"
+
+
+def test_truncated_line1_reads_only_top_level_created_at(tmp_path):
+    nested_before = "aaaaaaaa-0000-4000-8000-000000000011"
+    nested_only = "aaaaaaaa-0000-4000-8000-000000000012"
+    in_string = "aaaaaaaa-0000-4000-8000-000000000013"
+    epoch_after_str = "aaaaaaaa-0000-4000-8000-000000000014"
+
+    _create_db(
+        tmp_path,
+        [
+            _full_row(nested_before),
+            _full_row(nested_only),
+            _full_row(in_string),
+            _full_row(epoch_after_str),
+        ],
+    )
+    _write_transcript(
+        tmp_path,
+        nested_before,
+        [
+            '{"metadata":{"created_at":"2020-01-01T00:00:00Z"},'
+            '"created_at":"2026-11-24T01:02:03Z","content":"' + ("x" * 70000) + '"}'
+        ],
+    )
+    _write_transcript(
+        tmp_path,
+        nested_only,
+        [
+            '{"metadata":{"created_at":"2020-01-01T00:00:00Z"},"content":"'
+            + ("x" * 70000)
+            + '","created_at":"2026-11-24T01:02:03Z"}'
+        ],
+    )
+    _write_transcript(
+        tmp_path,
+        in_string,
+        [
+            '{"content":"\\"created_at\\":\\"2020-01-01T00:00:00Z\\"'
+            + ("x" * 70000)
+            + '"}'
+        ],
+    )
+    _write_transcript(
+        tmp_path,
+        epoch_after_str,
+        [
+            '{"note":"{\\"created_at\\":\\"2020-01-01T00:00:00Z\\"}",'
+            '"created_at":1764000000,"content":"' + ("x" * 70000) + '"}'
+        ],
+    )
+
+    got = _by_id(Antigravity().scan(ScanContext(home=tmp_path)))
+    assert got[nested_before].created == "2026-11-24T01:02:03Z"
+    assert got[nested_only].created is None
+    assert got[in_string].created is None
+    assert got[epoch_after_str].created == "2025-11-24T16:00:00Z"
 
 
 @pytest.mark.parametrize(
@@ -537,6 +601,41 @@ def test_explicit_unknown_id_does_not_trigger_tier2_fallback(tmp_path, monkeypat
         )
     )
     assert got[sid].live == "no"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["agy", "--prompt-interactive", "--conversation=target"],
+        ["agy", "-i", "--resume", "target"],
+        ["agy", "--model", "--conversation=target"],
+        ["agy", "--", "--conversation", "target"],
+    ],
+)
+def test_value_flag_arguments_are_not_mistaken_for_conversation_id(
+    tmp_path, monkeypatch, argv
+):
+    _create_db(tmp_path, [_full_row("target")])
+    monkeypatch.setattr(agy_module, "process_cwd", lambda pid: "/work/other")
+    got = _by_id(Antigravity().scan(ScanContext(home=tmp_path, processes={600: argv})))
+    assert got["target"].live == "no"
+
+
+def test_real_conversation_id_after_value_flag_is_still_extracted(tmp_path):
+    fake = "88888888-0000-4000-8000-000000000021"
+    real = "88888888-0000-4000-8000-000000000022"
+    _create_db(tmp_path, [_full_row(fake), _full_row(real)])
+    argv = [
+        "agy",
+        "--prompt-interactive",
+        f"--conversation={fake}",
+        "--conversation",
+        real,
+    ]
+    got = _by_id(Antigravity().scan(ScanContext(home=tmp_path, processes={601: argv})))
+    assert got[fake].live == "no"
+    assert got[real].live == "yes"
+    assert got[real].pid == 601
 
 
 def test_recovery_window_requires_transcript_created_timestamp(tmp_path):
