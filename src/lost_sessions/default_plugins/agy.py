@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
+import shlex
 import sqlite3
 from collections.abc import Callable
 from contextlib import closing
@@ -30,7 +31,6 @@ from lost_sessions.models import Lineage, Live, ScanResult, Session, SourceStatu
 
 _CREATED_HEAD_BYTES = 64 * 1024
 _AGY_BIN = re.compile(r"agy(-bin[-.\w]*)?")
-_CREATED_AT_RE = re.compile(r'"created_at"\s*:\s*"([^"]+)"')
 _TIMESTAMP_RE = re.compile(
     r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d+))?"
     r"(?:\s*([Zz]|[+-]\d{2}:?\d{2})(?:\s+[A-Za-z0-9_/+:-]+)?)?$"
@@ -195,6 +195,51 @@ def _transcript_path(app_data: Path, sid: str) -> Path:
     return app_data / "brain" / sid / ".system_generated" / "logs" / "transcript.jsonl"
 
 
+def _extract_top_level_created_at(text: str) -> object:
+    """Scan a truncated JSON object prefix for a top-level `created_at` value."""
+    decoder = json.JSONDecoder()
+    n = len(text)
+    i = 0
+    while i < n and text[i] in " \t\r\n":
+        i += 1
+    if i >= n or text[i] != "{":
+        return None
+    i += 1
+    while i < n:
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+        if i >= n or text[i] != '"':
+            return None
+        try:
+            key, i = decoder.raw_decode(text, i)
+        except ValueError:
+            return None
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+        if i >= n or text[i] != ":":
+            return None
+        i += 1
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+        if i >= n:
+            return None
+        try:
+            val, i = decoder.raw_decode(text, i)
+        except ValueError:
+            # Truncated mid-value (e.g., an oversized content string): no later
+            # top-level key can exist within this bounded prefix.
+            return None
+        if key == "created_at":
+            return val
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+        if i < n and text[i] == ",":
+            i += 1
+        else:
+            return None
+    return None
+
+
 def _read_created_at(transcript_path: Path) -> str | None:
     """Read `created_at` from line 1 of `transcript.jsonl` with a bounded read."""
     try:
@@ -209,9 +254,11 @@ def _read_created_at(transcript_path: Path) -> str | None:
         obj = json.loads(text)
     except ValueError:
         if len(raw) == _CREATED_HEAD_BYTES and not raw.endswith(b"\n"):
-            match = _CREATED_AT_RE.search(text)
-            if match:
-                return _normalize_timestamp(match.group(1))
+            val = _extract_top_level_created_at(text)
+            try:
+                return _normalize_timestamp(val)
+            except TypeError:
+                return None
         return None
     if not isinstance(obj, dict):
         return None
@@ -263,6 +310,9 @@ def _extract_conversation_id(args: list[str]) -> str | None:
         for prefix in _CONVERSATION_PREFIXES:
             if tok.startswith(prefix):
                 return tok.removeprefix(prefix) or None
+        if tok in _VALUE_FLAGS:
+            i += 2
+            continue
         i += 1
     return None
 
@@ -383,7 +433,8 @@ class Antigravity(AgentTool):
             elif not rec.spawn_dir:
                 rec.resume_blocked = "no_workspace"
             else:
-                rec.resume = f"{cd_prefix(rec.spawn_dir)}agy --conversation {rec.id}"
+                prefix = cd_prefix(rec.spawn_dir)
+                rec.resume = f"{prefix}agy --conversation {shlex.quote(rec.id)}"
 
         return ScanResult(
             sessions=records,
