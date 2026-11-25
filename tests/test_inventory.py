@@ -1,9 +1,9 @@
-"""`lost-sessions inventory` and the four built-in agent plugins (TS-4).
+"""`lost-sessions inventory` and the five built-in agent plugins (TS-4).
 
 Ported from smorinlabs/smorinlabs-skills tests/test_session_inventory.py at
 cf83bf1, where they drove the `session-inventory list` script. They now drive
-`python -m lost_sessions inventory` the same way: fixture stores for Claude
-Code, Codex, Muse and OpenCode under a fake HOME, stand-in processes for
+`python -m lost_sessions inventory` the same way: fixture stores for Antigravity,
+Claude Code, Codex, Muse and OpenCode under a fake HOME, stand-in processes for
 liveness, and subprocess runs that check exit codes, the stdout/stderr split
 and the JSON contract.
 """
@@ -388,6 +388,76 @@ def build_opencode(home: Path):
     return ids, data
 
 
+AGY_SCHEMA = """CREATE TABLE conversation_summaries (
+  conversation_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL DEFAULT '',
+  preview TEXT NOT NULL DEFAULT '',
+  last_modified_time DATETIME NOT NULL,
+  workspace_uris TEXT NOT NULL,
+  parent_conversation_id TEXT NOT NULL DEFAULT '',
+  nesting_depth INTEGER NOT NULL DEFAULT 0)"""
+
+
+def build_agy(home: Path):
+    data = home / ".gemini" / "antigravity-cli"
+    data.mkdir(parents=True)
+    token = os.urandom(4).hex()
+    ids = {
+        "top": f"aa000000-{token}-4000-8000-000000000001",
+        "child": f"aa000000-{token}-4000-8000-000000000002",
+        "older": f"aa000000-{token}-4000-8000-000000000003",
+    }
+    db = sqlite3.connect(data / "conversation_summaries.db")
+    db.execute(AGY_SCHEMA)
+    rows = [
+        (
+            ids["top"],
+            "Debug agy plugin",
+            "preview",
+            iso(NOW - 5 * HOUR),
+            '["file:///work/epsilon"]',
+            "",
+            0,
+        ),
+        (
+            ids["child"],
+            "Subagent task",
+            "",
+            iso(NOW - 5 * HOUR),
+            '["file:///work/epsilon"]',
+            ids["top"],
+            1,
+        ),
+        (
+            ids["older"],
+            "",
+            "Older preview",
+            iso(NOW - 40 * HOUR),
+            '["file:///work/epsilon"]',
+            "",
+            0,
+        ),
+    ]
+    db.executemany("INSERT INTO conversation_summaries VALUES (?,?,?,?,?,?,?)", rows)
+    db.commit()
+    db.close()
+    for key, delta in (("top", 6 * HOUR), ("child", 6 * HOUR), ("older", 42 * HOUR)):
+        tpath = (
+            data
+            / "brain"
+            / ids[key]
+            / ".system_generated"
+            / "logs"
+            / "transcript.jsonl"
+        )
+        write_jsonl(
+            tpath,
+            [{"step_index": 0, "created_at": iso(NOW - delta)}],
+            mtime=NOW - delta,
+        )
+    return ids, data
+
+
 @pytest.fixture()
 def home(tmp_path):
     h = tmp_path / "home"
@@ -398,6 +468,7 @@ def home(tmp_path):
 @pytest.fixture()
 def world(home):
     return {
+        "agy": build_agy(home)[0],
         "claude": build_claude(home),
         "codex": build_codex(home),
         "muse": build_muse(home)[0],
@@ -1071,12 +1142,21 @@ def test_wrong_typed_fields_mark_the_session_unreadable(home, world):
     )
     db.commit()
     db.close()
+    db = sqlite3.connect(home / ".gemini/antigravity-cli/conversation_summaries.db")
+    db.execute(
+        "UPDATE conversation_summaries SET nesting_depth = 'deep' WHERE conversation_id = ?",
+        (world["agy"]["older"],),
+    )
+    db.commit()
+    db.close()
     doc = inventory(home)
     got = by_id(doc)
     assert got[bad_claude]["unreadable"] is True
     assert got[bad_codex]["unreadable"] is True
     assert got[world["muse"]["stale"]]["unreadable"] is True
     assert got[world["opencode"]["archived"]]["unreadable"] is True
+    assert got[world["agy"]["older"]]["unreadable"] is True
+    assert got[world["agy"]["top"]]["unreadable"] is False
     assert got[world["muse"]["named"]]["unreadable"] is False  # neighbours unaffected
     assert {v["status"] for v in doc["sources"].values()} == {"ok"}
 
@@ -1093,7 +1173,13 @@ def test_collect_reads_every_store_under_the_given_home(
         monkeypatch.delenv(var, raising=False)
     inv = collect(home=home)
     assert {v.status for v in inv.sources.values()} == {"ok"}
-    assert {s.tool for s in inv.sessions} == {"claude", "codex", "muse", "opencode"}
+    assert {s.tool for s in inv.sessions} == {
+        "agy",
+        "claude",
+        "codex",
+        "muse",
+        "opencode",
+    }
 
 
 def test_claude_lines_that_are_not_objects_are_skipped(home, world):
@@ -1129,7 +1215,7 @@ def test_missing_process_table_fails_only_the_agents_that_need_it(
     for var in ("CODEX_HOME", "XDG_DATA_HOME"):
         monkeypatch.delenv(var, raising=False)
     inv = collect(home=home)
-    assert inv.failed == ["codex", "muse", "opencode"]
+    assert inv.failed == ["agy", "codex", "muse", "opencode"]
     assert inv.sources["claude"].status == "ok"
     assert {s.tool for s in inv.sessions} == {"claude"}
     assert "process table" in inv.sources["muse"].message

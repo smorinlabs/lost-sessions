@@ -95,7 +95,7 @@ def _defaults(m):
 
 
 def test_the_built_ins_are_registered():
-    assert {"claude", "codex", "muse", "opencode", "fakeagent"} <= set(AGENTS)
+    assert {"agy", "claude", "codex", "muse", "opencode", "fakeagent"} <= set(AGENTS)
     assert {"herdr", "rex", "fakemgr"} <= set(MANAGERS)
 
 

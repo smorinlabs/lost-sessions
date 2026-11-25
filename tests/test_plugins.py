@@ -79,10 +79,10 @@ def test_entry_points_load_when_the_variable_is_unset(pm, monkeypatch):
     assert all(pm.has_plugin(path) for path in DEFAULT_PLUGINS)
 
 
-def test_the_six_built_ins_are_the_designed_modules():
+def test_the_seven_built_ins_are_the_designed_modules():
     assert DEFAULT_PLUGINS == tuple(
         f"lost_sessions.default_plugins.{m}"
-        for m in ("claude", "codex", "muse", "opencode", "herdr", "rex")
+        for m in ("agy", "claude", "codex", "muse", "opencode", "herdr", "rex")
     )
 
 
@@ -263,7 +263,7 @@ def test_inventory_tool_choices_come_from_loaded_agent_plugins(pm):
         ).type.choices
     finally:
         pm.unregister(name="undo-NameOnly")
-    assert list(choices) == ["claude", "codex", "muse", "opencode"]
+    assert list(choices) == ["agy", "claude", "codex", "muse", "opencode"]
 
 
 def test_the_public_api_for_plugin_authors():

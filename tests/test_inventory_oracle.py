@@ -22,6 +22,18 @@ pytestmark = pytest.mark.skipif(
 
 
 ORACLE = Path(__file__).resolve().parent / "oracle" / "session-inventory"
+# The pinned cf83bf1 oracle predates the built-in `agy` plugin; scope comparisons
+# to its four tools when `--tool` is not already given.
+ORACLE_TOOLS = [
+    "--tool",
+    "claude",
+    "--tool",
+    "codex",
+    "--tool",
+    "muse",
+    "--tool",
+    "opencode",
+]
 
 
 def _env(home):
@@ -61,8 +73,10 @@ def world(tmp_path):
 )
 def test_json_matches_the_oracle(world, args):
     old = _run([sys.executable, str(ORACLE), "list", "--json", *args], world)
+    extra = [] if "--tool" in args else ORACLE_TOOLS
     new = _run(
-        [sys.executable, "-m", "lost_sessions", "inventory", "--json", *args], world
+        [sys.executable, "-m", "lost_sessions", "inventory", "--json", *extra, *args],
+        world,
     )
     assert new[0] == old[0]
     assert json.loads(new[1]) == json.loads(old[1])
@@ -72,7 +86,9 @@ def test_json_matches_the_oracle(world, args):
 
 def test_text_output_matches_the_oracle(world):
     old = _run([sys.executable, str(ORACLE), "list"], world)
-    new = _run([sys.executable, "-m", "lost_sessions", "inventory"], world)
+    new = _run(
+        [sys.executable, "-m", "lost_sessions", "inventory", *ORACLE_TOOLS], world
+    )
     assert new == old
 
 
@@ -84,5 +100,8 @@ def test_partial_failure_matches_the_oracle(world):
     db.commit()
     db.close()
     old = _run([sys.executable, str(ORACLE), "list", "--json"], world)
-    new = _run([sys.executable, "-m", "lost_sessions", "inventory", "--json"], world)
+    new = _run(
+        [sys.executable, "-m", "lost_sessions", "inventory", "--json", *ORACLE_TOOLS],
+        world,
+    )
     assert new == old

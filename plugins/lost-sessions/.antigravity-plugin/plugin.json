@@ -1,0 +1,18 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "lost-sessions",
+  "displayName": "Lost Sessions",
+  "version": "0.1.0",
+  "description": "Recover lost agent sessions and keep optional session evidence.",
+  "suggestedPrompts": [
+    "Recover my lost agent sessions",
+    "Show this session's recorded evidence history"
+  ],
+  "author": {
+    "name": "smorinlabs"
+  },
+  "homepage": "https://github.com/smorinlabs/lost-sessions",
+  "repository": "https://github.com/smorinlabs/lost-sessions",
+  "license": "MIT",
+  "keywords": ["sessions", "recovery", "evidence"]
+}

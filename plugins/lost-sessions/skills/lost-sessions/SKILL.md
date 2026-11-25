@@ -63,9 +63,10 @@ lifecycle and work.
 
 ## Optional integration
 
-For a user-requested lifecycle integration, read
-[the hook guide](references/hooks.md). Hook templates are examples outside the
-plugin's automatic hook location. This skill does not install or enable them.
+For a user-requested lifecycle integration (Claude Code, Codex, or Antigravity
+`agy`), read [the hook guide](references/hooks.md). Hook templates are examples
+outside the plugin's automatic hook locations (neither `hooks.json` nor
+`hooks/hooks.json`). This skill does not install or enable them.
 
 For an optional user instruction that records wrap-up assessments, use
 [the integration example](references/records.md#optional-user-instruction).

@@ -7,8 +7,7 @@ an explicitly requested event or work assessment.
 
 The Python CLI is the prerequisite. Installing the plugin does not install the
 CLI, enable hooks, change agent transcripts, or authorize automatic recording.
-The plugin is available through the repository's Claude Code and Codex
-marketplace catalogs.
+The plugin ships native manifests for Antigravity, Claude Code, and Codex.
 
 ## Records and summaries
 
@@ -32,7 +31,8 @@ conclude that a session crashed merely because no end record exists.
 
 Lifecycle recording is a separate opt-in. The
 [hook guide](../../plugins/lost-sessions/skills/lost-sessions/references/hooks.md)
-supplies Claude Code and Codex configuration fragments. They are stored as
-examples rather than automatic plugin hooks. Muse and OpenCode remain usable
-through explicit records while their lifecycle adapters await payload
-validation. Automatic turn classification is not part of this version.
+supplies Antigravity (`agy`), Claude Code, and Codex configuration fragments.
+They are stored as examples rather than automatic plugin hooks. Muse and
+OpenCode remain usable through explicit records while their lifecycle adapters
+await payload validation. Automatic turn classification is not part of this
+version.

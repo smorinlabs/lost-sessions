@@ -26,8 +26,8 @@ def build_cli(manager: PluginManager = pm) -> click.Group:
     @click.group(
         invoke_without_command=True,
         help=(
-            "Recover Claude Code, Codex, Muse and OpenCode sessions that started "
-            "before the last boot but that no session manager will restore."
+            "Recover Antigravity, Claude Code, Codex, Muse and OpenCode sessions "
+            "that started before the last boot but that no session manager will restore."
         ),
     )
     @click.version_option(__version__, prog_name="lost-sessions")

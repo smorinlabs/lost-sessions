@@ -1,13 +1,13 @@
 # lost-sessions
 
-Recover the agent sessions a reboot dropped. `lost-sessions` finds Claude Code,
-Codex, Muse and OpenCode sessions that started before the last boot and that no
-session manager will restore, then prints their resume commands or reopens
-them in Herdr or Rex.
+Recover the agent sessions a reboot dropped. `lost-sessions` finds Antigravity
+(`agy`), Claude Code, Codex, Muse and OpenCode sessions that started before the
+last boot and that no session manager will restore, then prints their resume
+commands or reopens them in Herdr or Rex.
 
 Agents and session managers are plugins, the way
 [`simonw/llm`](https://llm.datasette.io/en/stable/plugins/) does plugins. The
-six built-ins use the same interface a third-party `lost-sessions-<name>`
+seven built-ins use the same interface a third-party `lost-sessions-<name>`
 package uses.
 
 ## Install
