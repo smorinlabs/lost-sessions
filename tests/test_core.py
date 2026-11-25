@@ -31,6 +31,7 @@ UTC = dt.UTC
 BOOT = dt.datetime(2026, 11, 11, 9, 51, tzinfo=UTC)
 START = dt.datetime(2026, 11, 10, 8, 0, tzinfo=UTC)
 # Made-up IDs in each tool's format, never real sessions.
+AGY_ID = "ec33ebf9-0000-4000-8000-00000000fa4e"
 CLAUDE_ID = "3ac1dc6f-0000-4000-8000-00000000fa4e"
 CODEX_ID = "01a1c914-0000-7000-8000-00000000fa4e"
 MUSE_ID = "01a1cc59-0000-7000-8000-00000000fa4e"
@@ -41,6 +42,7 @@ def session(id, created="2026-11-10T01:00:00Z", updated="2026-11-10T22:00:00Z", 
     tool = kw.pop("tool", "claude")
     d = kw.pop("spawn_dir", "/Users/x/c/repo")
     resume = {
+        "agy": f"cd {d} && agy --conversation {id}",
         "claude": f"cd {d} && claude --resume {id}",
         "codex": f"codex resume {id}",
         "muse": f"cd {d} && muse resume {id}",
@@ -283,6 +285,11 @@ def agents():
 
 def test_resume_args_per_tool(agents):
     d = "/Users/x/c/my repo"
+    assert core.resume_args(session(AGY_ID, tool="agy", spawn_dir=d)) == [
+        "agy",
+        "--conversation",
+        AGY_ID,
+    ]
     assert core.resume_args(session(CLAUDE_ID, spawn_dir=d)) == [
         "claude",
         "--resume",

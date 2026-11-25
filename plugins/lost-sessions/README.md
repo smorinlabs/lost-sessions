@@ -7,9 +7,9 @@ The plugin exposes one skill, **lost-sessions**. It keeps runtime lifecycle
 observations separate from assessments such as "main work probably complete."
 It does not enable hooks or record data merely because it is installed.
 
-From a local checkout, add the checkout's absolute path as a marketplace in the
-runtime, then install `lost-sessions@lost-sessions`:
+From a local checkout, install the companion plugin in your runtime:
 
+- Antigravity (`agy`): `agy plugin install PATH/plugins/lost-sessions`.
 - Claude Code: `/plugin marketplace add PATH`, then
   `/plugin install lost-sessions@lost-sessions`.
 - Codex: `codex plugin marketplace add PATH`, then

@@ -1,16 +1,17 @@
 # Writing plugins
 
 lost-sessions finds agent sessions and reopens them only through plugins, the
-way [`simonw/llm`](https://llm.datasette.io/en/stable/plugins/) does. The six
-built-in plugins, Claude Code, Codex, Muse and OpenCode (agents) and Herdr and
-Rex (session managers), use exactly the interface described here. A
-third-party plugin is an ordinary Python package that registers more of them.
+way [`simonw/llm`](https://llm.datasette.io/en/stable/plugins/) does. The seven
+built-in plugins, Antigravity (`agy`), Claude Code, Codex, Muse and OpenCode
+(agents) and Herdr and Rex (session managers), use exactly the interface
+described here. A third-party plugin is an ordinary Python package that
+registers more of them.
 
 There are two kinds of plugin object:
 
 | Kind | Base class | What it does | Built-in examples |
 |---|---|---|---|
-| Agent tool | `AgentTool` | Reads one agent's session store and reports its sessions | `claude`, `codex`, `muse`, `opencode` |
+| Agent tool | `AgentTool` | Reads one agent's session store and reports its sessions | `agy`, `claude`, `codex`, `muse`, `opencode` |
 | Session manager | `SessionManager` | Restores sessions by itself after a reboot, opens sessions on request, or both | `herdr`, `rex` |
 
 A plugin can also add subcommands to `lost-sessions`.

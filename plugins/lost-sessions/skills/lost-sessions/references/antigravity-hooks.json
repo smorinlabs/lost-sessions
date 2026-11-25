@@ -1,0 +1,11 @@
+{
+  "lost-sessions-evidence": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "if command -v lost-sessions >/dev/null 2>&1; then lost-sessions evidence hook --tool agy || printf '{}\\n'; else printf '{}\\n'; fi",
+        "timeout": 1
+      }
+    ]
+  }
+}

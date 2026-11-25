@@ -26,9 +26,9 @@ from lost_sessions.managers import (
     run_json,
 )
 
-# Herdr records Claude and Codex sessions through its own integrations. Muse has
-# none and OpenCode's is optional, so for them the resume command is reported.
-REPORT_TOOLS = ("muse", "opencode")
+# Herdr records Claude and Codex sessions through its own integrations. Antigravity
+# and Muse have none and OpenCode's is optional, so for them the resume command is reported.
+REPORT_TOOLS = ("agy", "muse", "opencode")
 LOG_SOURCE = "lost-sessions"
 
 

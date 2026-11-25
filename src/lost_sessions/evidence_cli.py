@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from typing import Literal, override
+from typing import override
 
 import click
 from pydantic import ValidationError
 
 from lost_sessions.evidence import Store, Summary, summarize, validate_event
-from lost_sessions.evidence_hooks import normalize_hook
+from lost_sessions.evidence_hooks import HookTool, normalize_hook
 from lost_sessions.plugins import PluginManager
 
 
@@ -220,11 +220,15 @@ def evidence_command(manager: PluginManager) -> click.Group:
         )
 
     @group.command(name="hook")
-    @click.option("--tool", required=True, type=click.Choice(["claude", "codex"]))
-    def hook(tool: Literal["claude", "codex"]) -> None:
+    @click.option(
+        "--tool", required=True, type=click.Choice(["agy", "claude", "codex"])
+    )
+    def hook(tool: HookTool) -> None:
         """Consume an opt-in SessionStart/SessionEnd notification on stdin.
 
         Unknown events are ignored. Recording failures warn on stderr and exit 0.
+        Antigravity hooks expect JSON on stdout, so `--tool agy` writes `{}` on
+        stdout even when ignoring events or failing open.
         This command never installs hooks or changes runtime configuration.
         """
         try:
@@ -237,5 +241,7 @@ def evidence_command(manager: PluginManager) -> click.Group:
                 "invalid hook payload" if isinstance(exc, ValidationError) else str(exc)
             )
             click.echo(f"lost-sessions: evidence not recorded: {message}", err=True)
+        if tool == "agy":
+            click.echo("{}")
 
     return group

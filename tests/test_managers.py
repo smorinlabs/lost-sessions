@@ -27,6 +27,7 @@ from lost_sessions.default_plugins.rex import (
 from lost_sessions.history import HistoryEntry
 from lost_sessions.managers import run_json
 from tests.test_core import (  # noqa: F401 - cli_env is a fixture
+    AGY_ID,
     CLAUDE_ID,
     CODEX_ID,
     MUSE_ID,
@@ -379,6 +380,7 @@ def test_herdr_plan_uses_tab_in_existing_workspace(cli_env):
 
 def test_muse_and_opencode_report_their_resume_command(cli_env):
     for id, tool, argv in (
+        (AGY_ID, "agy", ["agy", "--conversation", AGY_ID]),
         (MUSE_ID, "muse", ["muse", "resume", MUSE_ID]),
         (OC_ID, "opencode", ["opencode", "--session", OC_ID]),
     ):

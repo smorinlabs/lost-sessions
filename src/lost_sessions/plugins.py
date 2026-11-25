@@ -17,7 +17,7 @@ ENTRY_POINT_GROUP = "lost_sessions"
 LOAD_PLUGINS_ENV = "LOST_SESSIONS_LOAD_PLUGINS"
 DEFAULT_PLUGINS = tuple(
     f"lost_sessions.default_plugins.{m}"
-    for m in ("claude", "codex", "muse", "opencode", "herdr", "rex")
+    for m in ("agy", "claude", "codex", "muse", "opencode", "herdr", "rex")
 )
 
 

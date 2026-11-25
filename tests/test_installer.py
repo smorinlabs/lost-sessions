@@ -231,7 +231,7 @@ def test_plugins_hides_built_ins_unless_all(cli_env):
     )
     code, out, _ = run("plugins", "--all")
     names = [p["name"] for p in json.loads(out)]
-    for m in ("claude", "codex", "muse", "opencode", "herdr", "rex"):
+    for m in ("agy", "claude", "codex", "muse", "opencode", "herdr", "rex"):
         assert f"lost_sessions.default_plugins.{m}" in names
     assert names == sorted(names)
 

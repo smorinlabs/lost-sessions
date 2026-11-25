@@ -79,9 +79,9 @@ modifies a database carrying a newer version.
 ## Optional skill and hooks
 
 The optional companion plugin provides the recording workflow. From a local
-checkout, add the checkout's absolute path as a marketplace, then install
-`lost-sessions@lost-sessions`:
+checkout, install it in your runtime:
 
+- Antigravity (`agy`): `agy plugin install PATH/plugins/lost-sessions`.
 - Claude Code: `/plugin marketplace add PATH`, then
   `/plugin install lost-sessions@lost-sessions`.
 - Codex: `codex plugin marketplace add PATH`, then
@@ -90,11 +90,13 @@ checkout, add the checkout's absolute path as a marketplace, then install
 `PATH` is the checkout's absolute path, obtained by running `pwd` from its root.
 The Python CLI and companion plugin are separate installs.
 Skill installation alone enables no hooks.
-The separate templates call `lost-sessions evidence hook --tool claude` or
-`--tool codex` with the original payload on stdin. Failures warn and exit 0;
-the templates ignore a missing CLI.
+The separate templates call `lost-sessions evidence hook --tool claude`,
+`--tool codex`, or `--tool agy` with the original payload on stdin. Failures
+warn and exit 0 (emitting `{}` on stdout for `--tool agy`); the templates
+ignore a missing CLI.
 
-Only `SessionStart` and `SessionEnd` are recorded. Compaction is a context
-refresh; `Stop` is ignored. Hooks do not assess completion, infer user closure
-intent, or label crashes. Other runtimes can use explicit records until their
-automatic adapters are validated.
+Only `SessionStart` and `SessionEnd` are recorded (Antigravity has no
+`SessionEnd` hook, so only `SessionStart` is recorded for `agy`). Compaction is
+a context refresh; `Stop` is ignored. Hooks do not assess completion, infer user
+closure intent, or label crashes. Other runtimes can use explicit records until
+their automatic adapters are validated.
